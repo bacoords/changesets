@@ -7,21 +7,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/**
- * The generated page needs the Boot script module supplied by WordPress 7.0+.
- * Keep the classic list available on older installations.
- *
- * @return bool
- */
-function cs_workspace_available() {
-	return function_exists( 'wp_register_script_module' )
-		&& file_exists( CS_PATH . 'build/build.php' )
-		&& file_exists( ABSPATH . WPINC . '/js/dist/script-modules/boot/index.min.asset.php' );
-}
-
-if ( cs_workspace_available() ) {
-	require_once CS_PATH . 'build/build.php';
-}
+require_once CS_PATH . 'build/build.php';
 
 /**
  * URL for the workspace or one of its routes.
@@ -35,13 +21,19 @@ function cs_workspace_url( $route = '/' ) {
 }
 
 /**
+ * URL for reviewing a changeset in the workspace.
+ *
+ * @param int $changeset_id Changeset ID.
+ * @return string
+ */
+function cs_review_url( $changeset_id ) {
+	return cs_workspace_url( '/review/' . (int) $changeset_id );
+}
+
+/**
  * Place the generated wp-admin workspace under Tools.
  */
 function cs_register_workspace_menu() {
-	if ( ! cs_workspace_available() ) {
-		return;
-	}
-
 	add_submenu_page(
 		'tools.php',
 		__( 'Changesets', 'changesets' ),
@@ -69,10 +61,10 @@ function cs_workspace_enqueue_api_fetch( $hook_suffix ) {
 add_action( 'admin_enqueue_scripts', 'cs_workspace_enqueue_api_fetch', 5 );
 
 /**
- * Preserve bookmarks to the former post list.
+ * Preserve bookmarks to the former post list and review page.
  */
 function cs_redirect_classic_changeset_list() {
-	if ( ! cs_workspace_available() || ! current_user_can( 'manage_changesets' ) ) {
+	if ( ! current_user_can( 'manage_changesets' ) ) {
 		return;
 	}
 
@@ -92,7 +84,8 @@ function cs_redirect_classic_changeset_list() {
 		exit;
 	}
 }
-add_action( 'admin_init', 'cs_redirect_classic_changeset_list' );
+// Run before Core checks access to unregistered legacy plugin pages.
+add_action( 'admin_menu', 'cs_redirect_classic_changeset_list', 1 );
 
 /**
  * Check access to the workspace REST API.

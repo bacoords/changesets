@@ -27,8 +27,8 @@ function cs_register_changeset_cpt() {
 				'not_found_in_trash' => __( 'No changesets found in Trash', 'changesets' ),
 			),
 			'public'              => false,
-			'show_ui'             => ! cs_workspace_available(),
-			'show_in_menu'        => cs_workspace_available() ? false : 'tools.php',
+			'show_ui'             => false,
+			'show_in_menu'        => false,
 			'capability_type'     => 'post',
 			'capabilities'        => array( 'create_posts' => 'do_not_allow' ),
 			'map_meta_cap'        => true,
@@ -1615,7 +1615,7 @@ function cs_preview_block_templates() {
 
 	$templates = array();
 	$index     = cs_preview_staged_index();
-	if ( ! $index || ! function_exists( '_build_block_template_object_from_post_object' ) ) {
+	if ( ! $index ) {
 		return $templates;
 	}
 
@@ -1846,7 +1846,7 @@ add_action( 'pre_get_posts', 'cs_hide_staged_from_admin_lists' );
 function cs_get_status() {
 	$status = array(
 		'version'              => CS_VERSION,
-		'abilities_registered' => function_exists( 'wp_register_ability' ),
+		'abilities_registered' => null !== wp_get_ability( 'changesets/create' ),
 		'user_caps'            => array(
 			'manage_changesets'  => current_user_can( 'manage_changesets' ),
 			'approve_changesets' => current_user_can( 'approve_changesets' ),
