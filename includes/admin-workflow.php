@@ -25,7 +25,7 @@ function cs_review_url( $changeset_id ) {
  */
 function cs_register_review_page() {
 	add_submenu_page(
-		null,
+		'',
 		__( 'Review Changeset', 'changesets' ),
 		__( 'Review Changeset', 'changesets' ),
 		'manage_changesets',
