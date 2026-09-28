@@ -737,19 +737,6 @@ function cs_create_staged_page( $changeset_id, $title, $content = '', $slug = ''
 }
 
 /**
- * Get explicit post types for staged draft queries.
- *
- * WP_Query expands post_type=any to only searchable post types, which omits
- * internal types such as templates, template parts, and navigation. The staged
- * meta markers narrow these queries to changeset content.
- *
- * @return string[] Registered post type names.
- */
-function cs_get_staged_query_post_types() {
-	return array_values( get_post_types( array(), 'names' ) );
-}
-
-/**
  * Get staged draft for a source in a changeset.
  *
  * @param int $changeset_id Changeset ID.
@@ -757,32 +744,25 @@ function cs_get_staged_query_post_types() {
  * @return int Staged draft ID or 0.
  */
 function cs_get_staged_draft_for_source( $changeset_id, $source_id ) {
-	$staged = get_posts(
-		array(
-			'post_type'        => cs_get_staged_query_post_types(),
-			'post_status'      => 'draft',
-			'posts_per_page'   => 1,
-			'cs_internal'      => true,
-			'suppress_filters' => true,
-			'meta_query'       => array(
-				array(
-					'key'   => '_changeset_id',
-					'value' => (int) $changeset_id,
-				),
-				array(
-					'key'   => CS_META_SOURCE,
-					'value' => (int) $source_id,
-				),
-				array(
-					'key'   => '_changeset_is_staged',
-					'value' => '1',
-				),
-			),
-			'fields'           => 'ids',
+	global $wpdb;
+
+	// Query the staged markers directly: the MCP adapter can run before Core
+	// registers internal post types, so get_posts() may omit templates.
+	$staged_id = $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT p.ID FROM {$wpdb->posts} p
+			INNER JOIN {$wpdb->postmeta} changeset ON changeset.post_id = p.ID AND changeset.meta_key = '_changeset_id' AND changeset.meta_value = %d
+			INNER JOIN {$wpdb->postmeta} staged ON staged.post_id = p.ID AND staged.meta_key = '_changeset_is_staged' AND staged.meta_value = '1'
+			INNER JOIN {$wpdb->postmeta} source ON source.post_id = p.ID AND source.meta_key = %s AND source.meta_value = %d
+			WHERE p.post_status = 'draft'
+			ORDER BY p.post_date DESC, p.ID DESC LIMIT 1",
+			(int) $changeset_id,
+			CS_META_SOURCE,
+			(int) $source_id
 		)
 	);
 
-	return $staged ? $staged[0] : 0;
+	return $staged_id ? (int) $staged_id : 0;
 }
 
 /**
@@ -792,24 +772,20 @@ function cs_get_staged_draft_for_source( $changeset_id, $source_id ) {
  * @return array Array of staged draft IDs.
  */
 function cs_get_staged_drafts( $changeset_id ) {
-	return get_posts(
-		array(
-			'post_type'      => cs_get_staged_query_post_types(),
-			'post_status'    => 'draft',
-			'posts_per_page' => -1,
-			'meta_query'     => array(
-				array(
-					'key'   => '_changeset_id',
-					'value' => (int) $changeset_id,
-				),
-				array(
-					'key'   => '_changeset_is_staged',
-					'value' => '1',
-				),
-			),
-			'fields'         => 'ids',
+	global $wpdb;
+
+	$ids = $wpdb->get_col(
+		$wpdb->prepare(
+			"SELECT DISTINCT p.ID FROM {$wpdb->posts} p
+			INNER JOIN {$wpdb->postmeta} changeset ON changeset.post_id = p.ID AND changeset.meta_key = '_changeset_id' AND changeset.meta_value = %d
+			INNER JOIN {$wpdb->postmeta} staged ON staged.post_id = p.ID AND staged.meta_key = '_changeset_is_staged' AND staged.meta_value = '1'
+			WHERE p.post_status = 'draft'
+			ORDER BY p.post_date DESC, p.ID DESC",
+			(int) $changeset_id
 		)
 	);
+
+	return array_map( 'intval', $ids );
 }
 
 /**
