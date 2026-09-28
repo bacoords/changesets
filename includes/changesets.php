@@ -242,6 +242,13 @@ function cs_approve_changeset( $changeset_id ) {
 	if ( ! cs_user_can_approve_changeset( $changeset_id ) ) {
 		return new WP_Error( 'cs_forbidden', __( 'You cannot approve this changeset.', 'changesets' ) );
 	}
+	$status = cs_get_changeset_status( $changeset_id );
+	if ( 'approved' === $status ) {
+		return true;
+	}
+	if ( 'open' !== $status ) {
+		return new WP_Error( 'cs_not_open', __( 'Only open changesets can be approved.', 'changesets' ) );
+	}
 
 	update_post_meta( $changeset_id, '_changeset_status', 'approved' );
 	update_post_meta( $changeset_id, '_changeset_approved_by', get_current_user_id() );
@@ -856,6 +863,16 @@ function cs_publish_changeset( $changeset_id ) {
 	if ( ! $changeset ) {
 		return new WP_Error( 'cs_not_changeset', __( 'Not a changeset.', 'changesets' ) );
 	}
+	if ( ! cs_user_can_publish_changeset( $changeset_id ) ) {
+		return new WP_Error( 'cs_forbidden', __( 'You cannot publish this changeset.', 'changesets' ) );
+	}
+	if ( ! cs_is_changeset_approved( $changeset_id ) ) {
+		return new WP_Error(
+			'cs_not_approved',
+			__( 'A human must approve this changeset before publishing.', 'changesets' ),
+			array( 'changeset_id' => $changeset_id, 'preview_url' => cs_get_preview_url( $changeset_id ) )
+		);
+	}
 
 	// Set internal flag to bypass staged-publish guard during this operation.
 	$cs_publishing_changeset = true;
@@ -899,7 +916,7 @@ function cs_publish_changeset( $changeset_id ) {
 
 			wp_save_post_revision( $source_id );
 
-			wp_update_post(
+			$update = wp_update_post(
 				array(
 					'ID'           => $source_id,
 					'post_title'   => $staged->post_title,
@@ -908,6 +925,14 @@ function cs_publish_changeset( $changeset_id ) {
 				),
 				true
 			);
+			if ( is_wp_error( $update ) || ! $update ) {
+				$failed_items[] = array(
+					'staged_id' => $staged_id,
+					'source_id' => $source_id,
+					'reason'    => is_wp_error( $update ) ? $update->get_error_message() : 'Could not update source post',
+				);
+				continue;
+			}
 
 			$thumb = get_post_thumbnail_id( $staged_id );
 			if ( $thumb ) {
@@ -945,10 +970,13 @@ function cs_publish_changeset( $changeset_id ) {
 				true
 			);
 
-			if ( is_wp_error( $result ) ) {
+			if ( is_wp_error( $result ) || ! $result ) {
+				update_post_meta( $staged_id, '_changeset_is_staged', 1 );
+				update_post_meta( $staged_id, '_changeset_id', $changeset_id );
+				update_post_meta( $staged_id, CS_META_SOURCE, 0 );
 				$failed_items[] = array(
 					'staged_id' => $staged_id,
-					'reason'    => $result->get_error_message(),
+					'reason'    => is_wp_error( $result ) ? $result->get_error_message() : 'Could not publish staged post',
 				);
 				continue;
 			}
@@ -956,6 +984,12 @@ function cs_publish_changeset( $changeset_id ) {
 			// Verify final status is publish.
 			$published_post = get_post( $staged_id );
 			if ( ! $published_post || 'publish' !== $published_post->post_status ) {
+				if ( $published_post ) {
+					wp_update_post( array( 'ID' => $staged_id, 'post_status' => 'draft' ) );
+				}
+				update_post_meta( $staged_id, '_changeset_is_staged', 1 );
+				update_post_meta( $staged_id, '_changeset_id', $changeset_id );
+				update_post_meta( $staged_id, CS_META_SOURCE, 0 );
 				$failed_items[] = array(
 					'staged_id'    => $staged_id,
 					'reason'       => 'Failed to reach publish status',
@@ -972,6 +1006,19 @@ function cs_publish_changeset( $changeset_id ) {
 
 	// Clear internal flag.
 	$cs_publishing_changeset = false;
+
+	// Keep the failed drafts and dependent settings for a later retry.
+	if ( $failed_items ) {
+		return array(
+			'changeset_id'        => $changeset_id,
+			'applied_count'       => $applied,
+			'published_new_count' => $published_new,
+			'source_ids'          => $source_ids,
+			'status'              => 'approved',
+			'failed_items'        => $failed_items,
+			'partial_success'     => true,
+		);
+	}
 
 	// Apply settings with ID remapping AFTER content is published.
 	$options = cs_get_staged_options( $changeset_id );
@@ -1046,11 +1093,6 @@ function cs_publish_changeset( $changeset_id ) {
 		'source_ids'          => $source_ids,
 		'status'              => 'published',
 	);
-
-	if ( ! empty( $failed_items ) ) {
-		$result['failed_items'] = $failed_items;
-		$result['partial_success'] = true;
-	}
 
 	return $result;
 }

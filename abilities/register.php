@@ -541,6 +541,9 @@ function cs_ability_save( $input ) {
 	if ( ! $changeset ) {
 		return new WP_Error( 'cs_invalid_changeset', __( 'Invalid changeset.', 'changesets' ) );
 	}
+	if ( 'open' !== cs_get_changeset_status( $changeset_id ) ) {
+		return new WP_Error( 'cs_not_open', __( 'Only open changesets can accept new changes.', 'changesets' ) );
+	}
 
 	switch ( $type ) {
 		case 'content':
@@ -774,15 +777,7 @@ function cs_ability_can_publish_changeset( $input ) {
 
 function cs_ability_publish_changeset( $input ) {
 	$changeset_id = (int) $input['changeset_id'];
-	if ( ! cs_is_changeset_approved( $changeset_id ) ) {
-		return new WP_Error(
-			'cs_not_approved',
-			__( 'A human must Approve Changeset before Publish Changeset.', 'changesets' ),
-			array( 'changeset_id' => $changeset_id, 'preview_url' => cs_get_preview_url( $changeset_id ) )
-		);
-	}
-
-	$result = cs_publish_changeset( $changeset_id );
+	$result       = cs_publish_changeset( $changeset_id );
 	if ( is_wp_error( $result ) ) {
 		return $result;
 	}

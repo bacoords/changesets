@@ -24,6 +24,7 @@ define( 'CS_META_SOURCE', '_changeset_source' );
 require_once CS_PATH . 'includes/caps.php';
 require_once CS_PATH . 'includes/changesets.php';
 require_once CS_PATH . 'includes/admin.php';
+require_once CS_PATH . 'includes/admin-workflow.php';
 require_once CS_PATH . 'abilities/register.php';
 
 /**
