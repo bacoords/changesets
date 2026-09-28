@@ -998,6 +998,25 @@ function cs_publish_changeset( $changeset_id ) {
 				continue;
 			}
 
+			// Block templates need a wp_theme term to be discoverable after publish.
+			// Keep the term off staged drafts so Core cannot show them on the live site.
+			if ( in_array( $staged->post_type, array( 'wp_template', 'wp_template_part' ), true ) ) {
+				$theme = (string) get_post_meta( $staged_id, 'theme', true );
+				$theme = $theme ? $theme : get_stylesheet();
+				$terms = wp_set_object_terms( $staged_id, $theme, 'wp_theme' );
+				if ( is_wp_error( $terms ) ) {
+					wp_update_post( array( 'ID' => $staged_id, 'post_status' => 'draft' ) );
+					update_post_meta( $staged_id, '_changeset_is_staged', 1 );
+					update_post_meta( $staged_id, '_changeset_id', $changeset_id );
+					update_post_meta( $staged_id, CS_META_SOURCE, 0 );
+					$failed_items[] = array(
+						'staged_id' => $staged_id,
+						'reason'    => $terms->get_error_message(),
+					);
+					continue;
+				}
+			}
+
 			$staged_to_live[ $staged_id ] = $staged_id;
 			$source_ids[] = $staged_id;
 			$published_new++;
@@ -1604,6 +1623,125 @@ function cs_preview_global_styles( $theme_json ) {
 	return new WP_Theme_JSON_Data( $payload, 'custom' );
 }
 add_filter( 'wp_theme_json_data_user', 'cs_preview_global_styles' );
+
+/**
+ * Build preview-only block templates from staged drafts. Drafts deliberately do
+ * not have a wp_theme term, because Core can otherwise load them outside preview.
+ *
+ * @return array<string, WP_Block_Template> Templates keyed by type:theme//slug.
+ */
+function cs_preview_block_templates() {
+	static $templates = null;
+	if ( null !== $templates ) {
+		return $templates;
+	}
+
+	$templates = array();
+	$index     = cs_preview_staged_index();
+	if ( ! $index || ! function_exists( '_build_block_template_object_from_post_object' ) ) {
+		return $templates;
+	}
+
+	foreach ( cs_get_staged_drafts( $index['changeset_id'] ) as $staged_id ) {
+		$staged = get_post( $staged_id );
+		if ( ! $staged || ! in_array( $staged->post_type, array( 'wp_template', 'wp_template_part' ), true ) ) {
+			continue;
+		}
+
+		$source_id = cs_get_staged_source_id( $staged_id );
+		$source    = $source_id ? get_post( $source_id ) : null;
+		$theme_terms = $source ? wp_get_object_terms( $source_id, 'wp_theme', array( 'fields' => 'names' ) ) : array();
+		$theme       = ! is_wp_error( $theme_terms ) && ! empty( $theme_terms ) ? $theme_terms[0] : (string) get_post_meta( $staged_id, 'theme', true );
+		$theme     = $theme ? $theme : get_stylesheet();
+		if ( get_stylesheet() !== $theme ) {
+			continue;
+		}
+
+		$preview = clone $staged;
+		if ( $source ) {
+			$preview->post_name = $source->post_name;
+		}
+		if ( ! $preview->post_name ) {
+			continue;
+		}
+
+		$terms = array( 'wp_theme' => $theme );
+		if ( 'wp_template_part' === $staged->post_type && $source ) {
+			$areas = wp_get_object_terms( $source_id, 'wp_template_part_area', array( 'fields' => 'names' ) );
+			if ( ! is_wp_error( $areas ) && $areas ) {
+				$terms['wp_template_part_area'] = $areas[0];
+			}
+		}
+		$template = _build_block_template_object_from_post_object( $preview, $terms );
+		if ( is_wp_error( $template ) ) {
+			continue;
+		}
+		$template->status = 'publish';
+		$templates[ $staged->post_type . ':' . $template->id ] = $template;
+	}
+
+	return $templates;
+}
+
+/**
+ * Replace theme and live templates with the active changeset's versions.
+ *
+ * @param WP_Block_Template[] $templates Queried templates.
+ * @param array               $query     Core template query.
+ * @param string              $type      Template post type.
+ * @return WP_Block_Template[]
+ */
+function cs_preview_get_block_templates( $templates, $query, $type ) {
+	foreach ( cs_preview_block_templates() as $key => $staged ) {
+		if ( $type . ':' . $staged->id !== $key ) {
+			continue;
+		}
+		if ( ! empty( $query['slug__in'] ) && ! in_array( $staged->slug, $query['slug__in'], true ) ) {
+			continue;
+		}
+		if ( ! empty( $query['post_type'] ) ) {
+			if ( ! $staged->is_custom ) {
+				continue;
+			}
+			if ( isset( $staged->post_types ) && ! in_array( $query['post_type'], $staged->post_types, true ) ) {
+				continue;
+			}
+		}
+		if ( isset( $query['wp_id'] ) && (int) $query['wp_id'] !== (int) $staged->wp_id ) {
+			continue;
+		}
+		if ( isset( $query['area'] ) && $query['area'] !== $staged->area ) {
+			continue;
+		}
+		$replaced = false;
+		foreach ( $templates as $i => $template ) {
+			if ( $template->id === $staged->id ) {
+				$templates[ $i ] = $staged;
+				$replaced        = true;
+				break;
+			}
+		}
+		if ( ! $replaced ) {
+			$templates[] = $staged;
+		}
+	}
+	return $templates;
+}
+add_filter( 'get_block_templates', 'cs_preview_get_block_templates', 10, 3 );
+
+/**
+ * Resolve an individual staged template during preview, including template parts.
+ *
+ * @param WP_Block_Template|null $template Existing short-circuit result.
+ * @param string                 $id       Theme//slug identifier.
+ * @param string                 $type     Template post type.
+ * @return WP_Block_Template|null
+ */
+function cs_preview_get_block_template( $template, $id, $type ) {
+	$staged = cs_preview_block_templates();
+	return isset( $staged[ $type . ':' . $id ] ) ? $staged[ $type . ':' . $id ] : $template;
+}
+add_filter( 'pre_get_block_template', 'cs_preview_get_block_template', 10, 3 );
 
 
 
