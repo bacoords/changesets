@@ -165,133 +165,61 @@ function cs_render_changeset_bar_footer_fallback() {
 }
 
 /**
- * Add preview controls to the native WordPress admin bar.
+ * Link the active changeset to its review screen in the native admin bar.
  *
  * @param WP_Admin_Bar $admin_bar Admin bar instance.
  */
 function cs_add_admin_bar_menu( $admin_bar ) {
-	if ( ! is_user_logged_in() ) {
+	if ( ! is_user_logged_in() || ! current_user_can( 'manage_changesets' ) ) {
 		return;
 	}
 
-	$can_manage = current_user_can( 'manage_changesets' );
-	$uuid       = cs_get_active_preview_uuid();
-	$changeset  = $uuid ? cs_get_changeset( $uuid ) : null;
-	if ( ! $can_manage && ! $changeset ) {
+	$uuid      = cs_get_active_preview_uuid();
+	$changeset = $uuid ? cs_get_changeset( $uuid ) : null;
+	if ( ! $changeset ) {
 		return;
 	}
 
-	$title = $changeset
-		? sprintf( __( 'Preview: %s', 'changesets' ), get_the_title( $changeset ) )
-		: __( 'Changesets', 'changesets' );
+	$label = sprintf(
+		/* translators: %s: changeset title. */
+		__( 'Changeset: %s', 'changesets' ),
+		get_the_title( $changeset )
+	);
+	$icon = '<svg class="cs-admin-bar-badge__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="6" cy="3" r="2"/><circle cx="6" cy="21" r="2"/><circle cx="18" cy="6" r="2"/><path d="M6 5v14M18 8a6 6 0 0 1-6 6H6"/></svg>';
 
 	$admin_bar->add_node(
 		array(
 			'id'    => 'changesets',
-			'title' => esc_html( $title ),
-			'href'  => $changeset ? cs_get_preview_url( $changeset->ID ) : ( cs_workspace_available() ? cs_workspace_url() : admin_url( 'edit.php?post_type=changeset' ) ),
-		)
-	);
-
-	if ( $changeset ) {
-		$admin_bar->add_node(
-			array(
-				'id'     => 'cs-exit-preview',
-				'parent' => 'changesets',
-				'title'  => esc_html__( 'Exit Changeset', 'changesets' ),
-				'href'   => add_query_arg( array( 'cs_exit_preview' => '1', 'changeset' => false ) ),
-			)
-		);
-	}
-
-	if ( ! $can_manage ) {
-		return;
-	}
-
-	$admin_bar->add_node(
-		array(
-			'id'     => 'cs-search',
-			'parent' => 'changesets',
-			'title'  => '<input type="search" id="cs-admin-bar-search" autocomplete="off" aria-label="' . esc_attr__( 'Search changesets', 'changesets' ) . '" placeholder="' . esc_attr__( 'Search changesets', 'changesets' ) . '">',
-		)
-	);
-	$admin_bar->add_node(
-		array(
-			'id'     => 'cs-all',
-			'parent' => 'changesets',
-			'title'  => esc_html__( 'View all changesets', 'changesets' ),
-			'href'   => cs_workspace_available() ? cs_workspace_url() : admin_url( 'edit.php?post_type=changeset' ),
-		)
-	);
-}
-add_action( 'admin_bar_menu', 'cs_add_admin_bar_menu', 80 );
-
-/**
- * Search open and approved changesets for the admin bar switcher.
- */
-function cs_admin_bar_search_changesets() {
-	check_ajax_referer( 'cs_admin_bar_search' );
-	if ( ! current_user_can( 'manage_changesets' ) ) {
-		wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'changesets' ) ), 403 );
-	}
-
-	$search = isset( $_GET['term'] ) ? sanitize_text_field( wp_unslash( $_GET['term'] ) ) : '';
-	$query  = new WP_Query(
-		array(
-			'post_type'      => 'changeset',
-			'post_status'    => array( 'draft', 'pending' ),
-			'posts_per_page' => 10,
-			'no_found_rows'  => true,
-			's'              => $search,
-			'meta_query'     => array(
-				array(
-					'key'     => '_changeset_status',
-					'value'   => array( 'open', 'approved' ),
-					'compare' => 'IN',
-				),
+			'title' => '<span class="cs-admin-bar-badge">' . $icon . '<span class="cs-admin-bar-badge__label">' . esc_html( $label ) . '</span></span>',
+			'href'  => cs_review_url( $changeset->ID ),
+			'meta'  => array(
+				'class' => 'cs-active-changeset',
+				'title' => $label,
 			),
-			'orderby'        => 'date',
-			'order'          => 'DESC',
 		)
 	);
-
-	$items = array();
-	foreach ( $query->posts as $changeset ) {
-		$items[] = array(
-			'id'          => (int) $changeset->ID,
-			'title'       => get_the_title( $changeset ),
-			'status'      => cs_get_changeset_status( $changeset->ID ),
-			'preview_url' => cs_get_preview_url( $changeset->ID ),
-		);
-	}
-	wp_send_json_success( array( 'items' => $items ) );
 }
-add_action( 'wp_ajax_cs_admin_bar_search', 'cs_admin_bar_search_changesets' );
+// Core adds Edit Site at priority 40; register immediately before it.
+add_action( 'admin_bar_menu', 'cs_add_admin_bar_menu', 39 );
 
 /**
- * Load the small admin bar switcher assets for users allowed to manage changesets.
+ * Load the badge style only while a manageable changeset preview is active.
  */
-function cs_enqueue_admin_bar_switcher() {
+function cs_enqueue_admin_bar_badge() {
 	if ( ! is_user_logged_in() || ! current_user_can( 'manage_changesets' ) || ! is_admin_bar_showing() ) {
 		return;
 	}
 
-	wp_enqueue_style( 'cs-admin-bar', CS_URL . 'assets/admin-bar.css', array(), CS_VERSION );
-	wp_enqueue_script( 'cs-admin-bar', CS_URL . 'assets/admin-bar.js', array(), CS_VERSION, true );
-	wp_localize_script(
-		'cs-admin-bar',
-		'csAdminBar',
-		array(
-			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-			'nonce'   => wp_create_nonce( 'cs_admin_bar_search' ),
-			'loading' => __( 'Loading changesets…', 'changesets' ),
-			'empty'   => __( 'No changesets found.', 'changesets' ),
-			'error'   => __( 'Could not load changesets.', 'changesets' ),
-		)
-	);
+	$uuid = cs_get_active_preview_uuid();
+	if ( ! $uuid || ! cs_get_changeset( $uuid ) ) {
+		return;
+	}
+
+	wp_enqueue_style( 'cs-design-tokens', CS_URL . 'build/vendor/design-tokens.css', array(), CS_VERSION );
+	wp_enqueue_style( 'cs-admin-bar', CS_URL . 'assets/admin-bar.css', array( 'cs-design-tokens' ), CS_VERSION );
 }
-add_action( 'wp_enqueue_scripts', 'cs_enqueue_admin_bar_switcher' );
-add_action( 'admin_enqueue_scripts', 'cs_enqueue_admin_bar_switcher' );
+add_action( 'wp_enqueue_scripts', 'cs_enqueue_admin_bar_badge' );
+add_action( 'admin_enqueue_scripts', 'cs_enqueue_admin_bar_badge' );
 
 /**
  * Changesets list: Preview opens the front-end overlay; no Quick Edit; no Edit.

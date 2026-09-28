@@ -192,6 +192,9 @@ function cs_workspace_serialize_changeset( $changeset, $include_changes = false 
 	$data['styles']      = (bool) ( cs_get_staged_global_styles( $id ) || cs_get_staged_style_variation( $id ) );
 	$data['can_approve'] = 'open' === $status && cs_user_can_approve_changeset( $id );
 	$data['can_publish'] = 'approved' === $status && cs_user_can_publish_changeset( $id );
+	$data['exit_url']    = cs_get_active_preview_uuid() === cs_get_changeset_uuid( $id )
+		? add_query_arg( 'cs_exit_preview', '1', cs_workspace_url( '/review/' . $id ) )
+		: '';
 
 	return $data;
 }

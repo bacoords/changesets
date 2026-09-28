@@ -127,6 +127,7 @@ export const stage = () => {
                 <p><Badge intent={ statusIntents[ item.status ] || 'none' }>{ statusLabels[ item.status ] || item.status }</Badge></p>
                 <div className="cs-workspace__actions">
                   { item.preview_url && <Button variant="secondary" href={ item.preview_url } target="_blank" rel="noopener noreferrer">{ __( 'Preview changeset', 'changesets' ) }</Button> }
+                  { item.exit_url && <Button variant="tertiary" href={ item.exit_url }>{ __( 'Exit changeset', 'changesets' ) }</Button> }
                   { item.can_approve && <Button variant="primary" isBusy={ busy } disabled={ busy } onClick={ () => runAction( 'approve' ) }>{ __( 'Approve changeset', 'changesets' ) }</Button> }
                   { item.can_publish && <Button variant="primary" isBusy={ busy } disabled={ busy } onClick={ () => runAction( 'publish' ) }>{ __( 'Publish changeset', 'changesets' ) }</Button> }
                 </div>
