@@ -1,0 +1,19 @@
+#wpadminbar #wp-admin-bar-cs-search .ab-item {
+	height: auto;
+	padding: 6px 10px;
+}
+
+#wpadminbar #cs-admin-bar-search {
+	box-sizing: border-box;
+	width: 240px;
+	max-width: 100%;
+	padding: 4px 6px;
+	border: 1px solid #8c8f94;
+	border-radius: 2px;
+	background: #fff;
+	color: #1d2327;
+}
+
+#wpadminbar .cs-admin-bar-result .ab-item {
+	white-space: normal;
+}

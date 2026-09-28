@@ -1,8 +1,7 @@
 <?php
 /**
- * Lean UI: Changeset bar on preview + Changesets list Preview action.
- *
- * No admin-bar items. Approve / Publish stay abilities (MCP).
+ * Preview controls in the WordPress admin bar for logged-in users and a
+ * standalone preview bar for logged-out visitors.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -10,9 +9,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Render the Changeset bar while previewing (logged-in or not).
+ * Render the standalone Changeset bar for logged-out previews.
  */
 function cs_render_changeset_bar() {
+	if ( is_user_logged_in() ) {
+		return;
+	}
+
 	$uuid = cs_get_active_preview_uuid();
 	if ( ! $uuid ) {
 		return;
@@ -162,6 +165,135 @@ function cs_render_changeset_bar_footer_fallback() {
 }
 
 /**
+ * Add preview controls to the native WordPress admin bar.
+ *
+ * @param WP_Admin_Bar $admin_bar Admin bar instance.
+ */
+function cs_add_admin_bar_menu( $admin_bar ) {
+	if ( ! is_user_logged_in() ) {
+		return;
+	}
+
+	$can_manage = current_user_can( 'manage_changesets' );
+	$uuid       = cs_get_active_preview_uuid();
+	$changeset  = $uuid ? cs_get_changeset( $uuid ) : null;
+	if ( ! $can_manage && ! $changeset ) {
+		return;
+	}
+
+	$title = $changeset
+		? sprintf( __( 'Preview: %s', 'changesets' ), get_the_title( $changeset ) )
+		: __( 'Changesets', 'changesets' );
+
+	$admin_bar->add_node(
+		array(
+			'id'    => 'changesets',
+			'title' => esc_html( $title ),
+			'href'  => $changeset ? cs_get_preview_url( $changeset->ID ) : admin_url( 'edit.php?post_type=changeset' ),
+		)
+	);
+
+	if ( $changeset ) {
+		$admin_bar->add_node(
+			array(
+				'id'     => 'cs-exit-preview',
+				'parent' => 'changesets',
+				'title'  => esc_html__( 'Exit Changeset', 'changesets' ),
+				'href'   => add_query_arg( array( 'cs_exit_preview' => '1', 'changeset' => false ) ),
+			)
+		);
+	}
+
+	if ( ! $can_manage ) {
+		return;
+	}
+
+	$admin_bar->add_node(
+		array(
+			'id'     => 'cs-search',
+			'parent' => 'changesets',
+			'title'  => '<input type="search" id="cs-admin-bar-search" autocomplete="off" aria-label="' . esc_attr__( 'Search changesets', 'changesets' ) . '" placeholder="' . esc_attr__( 'Search changesets', 'changesets' ) . '">',
+		)
+	);
+	$admin_bar->add_node(
+		array(
+			'id'     => 'cs-all',
+			'parent' => 'changesets',
+			'title'  => esc_html__( 'View all changesets', 'changesets' ),
+			'href'   => admin_url( 'edit.php?post_type=changeset' ),
+		)
+	);
+}
+add_action( 'admin_bar_menu', 'cs_add_admin_bar_menu', 80 );
+
+/**
+ * Search open and approved changesets for the admin bar switcher.
+ */
+function cs_admin_bar_search_changesets() {
+	check_ajax_referer( 'cs_admin_bar_search' );
+	if ( ! current_user_can( 'manage_changesets' ) ) {
+		wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'changesets' ) ), 403 );
+	}
+
+	$search = isset( $_GET['term'] ) ? sanitize_text_field( wp_unslash( $_GET['term'] ) ) : '';
+	$query  = new WP_Query(
+		array(
+			'post_type'      => 'changeset',
+			'post_status'    => array( 'draft', 'pending' ),
+			'posts_per_page' => 10,
+			'no_found_rows'  => true,
+			's'              => $search,
+			'meta_query'     => array(
+				array(
+					'key'     => '_changeset_status',
+					'value'   => array( 'open', 'approved' ),
+					'compare' => 'IN',
+				),
+			),
+			'orderby'        => 'date',
+			'order'          => 'DESC',
+		)
+	);
+
+	$items = array();
+	foreach ( $query->posts as $changeset ) {
+		$items[] = array(
+			'id'          => (int) $changeset->ID,
+			'title'       => get_the_title( $changeset ),
+			'status'      => cs_get_changeset_status( $changeset->ID ),
+			'preview_url' => cs_get_preview_url( $changeset->ID ),
+		);
+	}
+	wp_send_json_success( array( 'items' => $items ) );
+}
+add_action( 'wp_ajax_cs_admin_bar_search', 'cs_admin_bar_search_changesets' );
+
+/**
+ * Load the small admin bar switcher assets for users allowed to manage changesets.
+ */
+function cs_enqueue_admin_bar_switcher() {
+	if ( ! is_user_logged_in() || ! current_user_can( 'manage_changesets' ) || ! is_admin_bar_showing() ) {
+		return;
+	}
+
+	wp_enqueue_style( 'cs-admin-bar', CS_URL . 'assets/admin-bar.css', array(), CS_VERSION );
+	wp_enqueue_script( 'cs-admin-bar', CS_URL . 'assets/admin-bar.js', array(), CS_VERSION, true );
+	wp_localize_script(
+		'cs-admin-bar',
+		'csAdminBar',
+		array(
+			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+			'nonce'   => wp_create_nonce( 'cs_admin_bar_search' ),
+			'loading' => __( 'Loading changesets…', 'changesets' ),
+			'empty'   => __( 'No changesets found.', 'changesets' ),
+			'error'   => __( 'Could not load changesets.', 'changesets' ),
+		)
+	);
+}
+add_action( 'wp_enqueue_scripts', 'cs_enqueue_admin_bar_switcher' );
+add_action( 'admin_enqueue_scripts', 'cs_enqueue_admin_bar_switcher' );
+
+/**
  * Changesets list: Preview opens the front-end overlay; no Quick Edit; no Edit.
  *
  * @param array   $actions Row actions.
@@ -234,7 +366,7 @@ add_action( 'admin_enqueue_scripts', 'cs_disable_changeset_quick_edit' );
  * @return array
  */
 function cs_previewing_admin_body_class( $classes ) {
-	if ( cs_get_active_preview_uuid() && cs_get_changeset( cs_get_active_preview_uuid() ) ) {
+	if ( ! is_user_logged_in() && cs_get_active_preview_uuid() && cs_get_changeset( cs_get_active_preview_uuid() ) ) {
 		$classes[] = 'dcp-previewing';
 	}
 	return $classes;
