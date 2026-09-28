@@ -28,7 +28,7 @@ function cs_register_changeset_cpt() {
 			),
 			'public'              => false,
 			'show_ui'             => ! cs_workspace_available(),
-			'show_in_menu'        => ! cs_workspace_available(),
+			'show_in_menu'        => cs_workspace_available() ? false : 'tools.php',
 			'capability_type'     => 'post',
 			'map_meta_cap'        => true,
 			'supports'            => array( 'title' ),

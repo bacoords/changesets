@@ -120,7 +120,7 @@ function cs_changesets_wp_admin_preload_data() {
  */
 function cs_changesets_wp_admin_enqueue_scripts( $hook_suffix ) {
 	// Check all possible ways this page can be accessed:
-	// 1. Menu page via admin.php?page=changesets-wp-admin (plugin)
+	// 1. Tools subpage via tools.php?page=changesets-wp-admin (plugin)
 	// 2. Direct file via changesets.php (Core) - screen ID will be 'changesets'
 	$current_screen = get_current_screen();
 	$is_our_page = (

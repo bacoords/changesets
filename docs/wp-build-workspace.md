@@ -1,6 +1,6 @@
 # wp-build Changesets workspace experiment
 
-The Changesets post type still stores each changeset. On WordPress 7.0 or newer, the plugin hides its classic post list and registers a route-based `Changesets` admin page at `admin.php?page=changesets-wp-admin`. Older installations continue to use the classic list and review screen. Existing list and review bookmarks redirect to the new routes when the workspace is available.
+The Changesets post type still stores each changeset. On WordPress 7.0 or newer, the plugin hides its classic post list and registers a route-based `Changesets` subpage under Tools at `tools.php?page=changesets-wp-admin`. Older installations place the classic Changesets list under Tools and retain the classic review screen. Existing list, review, and workspace bookmarks redirect to the new routes when the workspace is available.
 
 The page uses the experimental `@wordpress/build` page and file-based route APIs. The home route uses `DataViews` for changeset search, filtering, sorting, and pagination. The review route uses `DataViews` for staged content. Both use `@wordpress/ui` Card and Badge, `@wordpress/components` controls, and WPDS design tokens. The build bundles DataViews and UI because these packages do not expose WordPress script globals. Gutenberg does not need to be installed. The build copies the DataViews stylesheet and design tokens into `build/vendor`; the admin page enqueues them with `wp-components` as a dependency.
 

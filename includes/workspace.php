@@ -30,26 +30,25 @@ if ( cs_workspace_available() ) {
  * @return string
  */
 function cs_workspace_url( $route = '/' ) {
-	$url = admin_url( 'admin.php?page=changesets-wp-admin' );
+	$url = admin_url( 'tools.php?page=changesets-wp-admin' );
 	return '/' === $route ? $url : add_query_arg( 'p', $route, $url );
 }
 
 /**
- * Replace the changeset post list menu with the generated wp-admin page.
+ * Place the generated wp-admin workspace under Tools.
  */
 function cs_register_workspace_menu() {
 	if ( ! cs_workspace_available() ) {
 		return;
 	}
 
-	add_menu_page(
+	add_submenu_page(
+		'tools.php',
 		__( 'Changesets', 'changesets' ),
 		__( 'Changesets', 'changesets' ),
 		'manage_changesets',
 		'changesets-wp-admin',
-		'cs_changesets_wp_admin_render_page',
-		'dashicons-clipboard',
-		26
+		'cs_changesets_wp_admin_render_page'
 	);
 }
 add_action( 'admin_menu', 'cs_register_workspace_menu' );
@@ -60,7 +59,7 @@ add_action( 'admin_menu', 'cs_register_workspace_menu' );
  * @param string $hook_suffix Admin page hook.
  */
 function cs_workspace_enqueue_api_fetch( $hook_suffix ) {
-	if ( 'toplevel_page_changesets-wp-admin' === $hook_suffix ) {
+	if ( 'tools_page_changesets-wp-admin' === $hook_suffix ) {
 		wp_enqueue_script( 'wp-api-fetch' );
 		wp_enqueue_style( 'cs-design-tokens', CS_URL . 'build/vendor/design-tokens.css', array(), CS_VERSION );
 		wp_enqueue_style( 'cs-dataviews', CS_URL . 'build/vendor/dataviews.css', array( 'wp-components', 'cs-design-tokens' ), CS_VERSION );
@@ -78,6 +77,11 @@ function cs_redirect_classic_changeset_list() {
 	}
 
 	global $pagenow;
+	if ( 'admin.php' === $pagenow && isset( $_GET['page'] ) && 'changesets-wp-admin' === sanitize_key( wp_unslash( $_GET['page'] ) ) ) {
+		$route = isset( $_GET['p'] ) ? sanitize_text_field( wp_unslash( $_GET['p'] ) ) : '/';
+		wp_safe_redirect( cs_workspace_url( $route ) );
+		exit;
+	}
 	if ( 'edit.php' === $pagenow && isset( $_GET['post_type'] ) && 'changeset' === sanitize_key( wp_unslash( $_GET['post_type'] ) ) ) {
 		wp_safe_redirect( cs_workspace_url() );
 		exit;
