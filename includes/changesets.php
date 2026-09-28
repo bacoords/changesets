@@ -30,6 +30,7 @@ function cs_register_changeset_cpt() {
 			'show_ui'             => ! cs_workspace_available(),
 			'show_in_menu'        => cs_workspace_available() ? false : 'tools.php',
 			'capability_type'     => 'post',
+			'capabilities'        => array( 'create_posts' => 'do_not_allow' ),
 			'map_meta_cap'        => true,
 			'supports'            => array( 'title' ),
 			'has_archive'         => false,

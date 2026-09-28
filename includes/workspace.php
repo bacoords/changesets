@@ -111,23 +111,9 @@ function cs_register_workspace_rest_routes() {
 		'changesets/v1',
 		'/workspace',
 		array(
-			array(
-				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => 'cs_workspace_list_changesets',
-				'permission_callback' => 'cs_workspace_can_manage',
-			),
-			array(
-				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => 'cs_workspace_create_changeset',
-				'permission_callback' => 'cs_workspace_can_manage',
-				'args'                => array(
-					'title' => array(
-						'type'              => 'string',
-						'required'          => true,
-						'sanitize_callback' => 'sanitize_text_field',
-					),
-				),
-			),
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => 'cs_workspace_list_changesets',
+			'permission_callback' => 'cs_workspace_can_manage',
 		)
 	);
 
@@ -235,26 +221,6 @@ function cs_workspace_get_changeset( $request ) {
 	}
 
 	return cs_workspace_serialize_changeset( $changeset, true );
-}
-
-/**
- * Create a new changeset from the workspace.
- *
- * @param WP_REST_Request $request REST request.
- * @return WP_REST_Response|WP_Error
- */
-function cs_workspace_create_changeset( $request ) {
-	$title = trim( $request['title'] );
-	if ( '' === $title ) {
-		return new WP_Error( 'cs_empty_title', __( 'Enter a changeset title.', 'changesets' ), array( 'status' => 400 ) );
-	}
-
-	$id = cs_create_changeset( $title );
-	if ( is_wp_error( $id ) ) {
-		return $id;
-	}
-
-	return new WP_REST_Response( cs_workspace_serialize_changeset( get_post( $id ) ), 201 );
 }
 
 /**

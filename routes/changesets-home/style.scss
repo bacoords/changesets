@@ -8,10 +8,6 @@
 .cs-workspace__header { margin-bottom: var(--wpds-dimension-gap-2xl); }
 .cs-workspace__header h1 { font-size: var(--wpds-typography-font-size-2xl); margin: 0 0 var(--wpds-dimension-gap-sm); }
 .cs-workspace__header p { color: var(--wpds-color-foreground-content-neutral-weak); margin: 0; }
-.cs-workspace__create { margin-bottom: var(--wpds-dimension-gap-2xl); }
-.cs-workspace__create form { display: flex; align-items: flex-end; gap: var(--wpds-dimension-gap-md); flex-wrap: wrap; }
-.cs-workspace__create .components-base-control { flex: 1 1 280px; }
-.cs-workspace__create .components-button { margin-bottom: var(--wpds-dimension-gap-md); }
 .cs-workspace__loading { padding: var(--wpds-dimension-padding-2xl); }
 .cs-workspace__back { display: inline-block; margin-bottom: var(--wpds-dimension-gap-xl); text-decoration: none; }
 .cs-workspace__review-layout { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: var(--wpds-dimension-gap-xl); }

@@ -1,10 +1,10 @@
 import apiFetch from '@wordpress/api-fetch';
-import { Button, Notice, Spinner, TextControl } from '@wordpress/components';
+import { Notice, Spinner } from '@wordpress/components';
 import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews';
 import { useEffect, useMemo, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
-import { Link, useNavigate } from '@wordpress/route';
-import { Badge, Card } from '@wordpress/ui';
+import { Link } from '@wordpress/route';
+import { Badge } from '@wordpress/ui';
 import './style.scss';
 
 const statusLabels = {
@@ -55,11 +55,8 @@ const initialView = {
 };
 
 export const stage = () => {
-  const navigate = useNavigate();
   const [ items, setItems ] = useState( null );
   const [ view, setView ] = useState( initialView );
-  const [ title, setTitle ] = useState( '' );
-  const [ creating, setCreating ] = useState( false );
   const [ error, setError ] = useState( '' );
 
   useEffect( () => {
@@ -73,26 +70,6 @@ export const stage = () => {
     [ items, view ]
   );
 
-  const create = async ( event ) => {
-    event.preventDefault();
-    if ( ! title.trim() || creating ) {
-      return;
-    }
-    setCreating( true );
-    setError( '' );
-    try {
-      const item = await apiFetch( {
-        path: '/changesets/v1/workspace',
-        method: 'POST',
-        data: { title: title.trim() },
-      } );
-      navigate( { to: `/review/${ item.id }` } );
-    } catch ( response ) {
-      setError( response.message || __( 'Could not create changeset.', 'changesets' ) );
-      setCreating( false );
-    }
-  };
-
   return (
     <main className="cs-workspace">
       <header className="cs-workspace__header">
@@ -101,23 +78,6 @@ export const stage = () => {
       </header>
 
       { error && <Notice status="error" isDismissible={ false }>{ error }</Notice> }
-
-      <Card.Root className="cs-workspace__create" render={ <section aria-label={ __( 'Create a changeset', 'changesets' ) } /> }>
-        <Card.Header><Card.Title>{ __( 'New changeset', 'changesets' ) }</Card.Title></Card.Header>
-        <Card.Content>
-          <form onSubmit={ create }>
-            <TextControl
-              label={ __( 'Title', 'changesets' ) }
-              value={ title }
-              onChange={ setTitle }
-              placeholder={ __( 'What are you changing?', 'changesets' ) }
-            />
-            <Button variant="primary" type="submit" isBusy={ creating } disabled={ creating || ! title.trim() }>
-              { __( 'Create changeset', 'changesets' ) }
-            </Button>
-          </form>
-        </Card.Content>
-      </Card.Root>
 
       <section aria-label={ __( 'All changesets', 'changesets' ) }>
         <h2>{ __( 'All changesets', 'changesets' ) }</h2>
