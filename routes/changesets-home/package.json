@@ -1,0 +1,18 @@
+{
+  "name": "@changesets/home-route",
+  "version": "1.0.0",
+  "private": true,
+  "route": {
+    "path": "/",
+    "page": "changesets"
+  },
+  "dependencies": {
+    "@wordpress/api-fetch": "*",
+    "@wordpress/components": "*",
+    "@wordpress/dataviews": "*",
+    "@wordpress/ui": "*",
+    "@wordpress/element": "*",
+    "@wordpress/i18n": "*",
+    "@wordpress/route": "*"
+  }
+}

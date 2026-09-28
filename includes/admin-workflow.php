@@ -14,6 +14,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return string
  */
 function cs_review_url( $changeset_id ) {
+	if ( cs_workspace_available() ) {
+		return cs_workspace_url( '/review/' . (int) $changeset_id );
+	}
+
 	return add_query_arg(
 		array( 'page' => 'cs-review', 'changeset_id' => (int) $changeset_id ),
 		admin_url( 'admin.php' )

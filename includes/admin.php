@@ -189,7 +189,7 @@ function cs_add_admin_bar_menu( $admin_bar ) {
 		array(
 			'id'    => 'changesets',
 			'title' => esc_html( $title ),
-			'href'  => $changeset ? cs_get_preview_url( $changeset->ID ) : admin_url( 'edit.php?post_type=changeset' ),
+			'href'  => $changeset ? cs_get_preview_url( $changeset->ID ) : ( cs_workspace_available() ? cs_workspace_url() : admin_url( 'edit.php?post_type=changeset' ) ),
 		)
 	);
 
@@ -220,7 +220,7 @@ function cs_add_admin_bar_menu( $admin_bar ) {
 			'id'     => 'cs-all',
 			'parent' => 'changesets',
 			'title'  => esc_html__( 'View all changesets', 'changesets' ),
-			'href'   => admin_url( 'edit.php?post_type=changeset' ),
+			'href'   => cs_workspace_available() ? cs_workspace_url() : admin_url( 'edit.php?post_type=changeset' ),
 		)
 	);
 }
