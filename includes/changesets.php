@@ -730,6 +730,19 @@ function cs_create_staged_page( $changeset_id, $title, $content = '', $slug = ''
 }
 
 /**
+ * Get explicit post types for staged draft queries.
+ *
+ * WP_Query expands post_type=any to only searchable post types, which omits
+ * internal types such as templates, template parts, and navigation. The staged
+ * meta markers narrow these queries to changeset content.
+ *
+ * @return string[] Registered post type names.
+ */
+function cs_get_staged_query_post_types() {
+	return array_values( get_post_types( array(), 'names' ) );
+}
+
+/**
  * Get staged draft for a source in a changeset.
  *
  * @param int $changeset_id Changeset ID.
@@ -739,7 +752,7 @@ function cs_create_staged_page( $changeset_id, $title, $content = '', $slug = ''
 function cs_get_staged_draft_for_source( $changeset_id, $source_id ) {
 	$staged = get_posts(
 		array(
-			'post_type'        => 'any',
+			'post_type'        => cs_get_staged_query_post_types(),
 			'post_status'      => 'draft',
 			'posts_per_page'   => 1,
 			'cs_internal'      => true,
@@ -774,7 +787,7 @@ function cs_get_staged_draft_for_source( $changeset_id, $source_id ) {
 function cs_get_staged_drafts( $changeset_id ) {
 	return get_posts(
 		array(
-			'post_type'      => 'any',
+			'post_type'      => cs_get_staged_query_post_types(),
 			'post_status'    => 'draft',
 			'posts_per_page' => -1,
 			'meta_query'     => array(
