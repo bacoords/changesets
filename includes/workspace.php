@@ -142,13 +142,19 @@ add_action( 'rest_api_init', 'cs_register_workspace_rest_routes' );
 function cs_workspace_serialize_changeset( $changeset, $include_changes = false ) {
 	$id     = (int) $changeset->ID;
 	$status = cs_get_changeset_status( $id );
+	$modified = get_post_modified_time( 'c', true, $changeset );
+	if ( ! $modified ) {
+		$modified = get_post_modified_time( 'c', false, $changeset );
+	}
+	$modified = $modified ? (string) $modified : '';
 	$data   = array(
 		'id'          => $id,
 		'title'       => get_the_title( $changeset ),
 		'status'      => $status,
-		'modified'    => get_post_modified_time( 'c', true, $changeset ),
+		'modified'    => $modified,
 		'preview_url' => 'published' === $status ? '' : cs_get_preview_url( $id ),
 		'review_url'  => cs_workspace_url( '/review/' . $id ),
+		'exit_preview_url' => add_query_arg( 'cs_exit_preview', '1', cs_workspace_url( '/review/' . $id ) ),
 	);
 
 	if ( ! $include_changes ) {
@@ -173,14 +179,65 @@ function cs_workspace_serialize_changeset( $changeset, $include_changes = false 
 
 	$data['settings']    = array_keys( cs_get_staged_options( $id ) );
 	$data['theme_json']  = cs_workspace_get_theme_json( $id );
+	$data['theme_json_changes'] = $data['theme_json'] && $data['theme_json']['staged']
+		? cs_workspace_theme_json_changes( $data['theme_json']['current'], $data['theme_json']['staged'] )
+		: array();
 	$data['styles']      = null !== $data['theme_json'];
 	$data['can_approve'] = 'open' === $status && cs_user_can_approve_changeset( $id );
 	$data['can_publish'] = 'approved' === $status && cs_user_can_publish_changeset( $id );
 	$data['exit_url']    = cs_get_active_preview_uuid() === cs_get_changeset_uuid( $id )
-		? add_query_arg( 'cs_exit_preview', '1', cs_workspace_url( '/review/' . $id ) )
+		? $data['exit_preview_url']
 		: '';
 
 	return $data;
+}
+
+/**
+ * Compare the values shown in the global styles review table.
+ *
+ * @param object|array $current Current live user-level theme.json data.
+ * @param object|array $staged  Staged user-level theme.json data.
+ * @return array Changed paths and values.
+ */
+function cs_workspace_theme_json_changes( $current, $staged ) {
+	$changes = array();
+	$compare = function ( $before, $after, $path, $before_set, $after_set ) use ( &$compare, &$changes ) {
+		$is_record = function ( $value ) {
+			return is_object( $value ) || ( is_array( $value ) && $value && array_keys( $value ) !== range( 0, count( $value ) - 1 ) );
+		};
+		$before_record = $before_set && $is_record( $before );
+		$after_record  = $after_set && $is_record( $after );
+
+		if ( ( $before_record || ! $before_set ) && ( $after_record || ! $after_set ) ) {
+			$before_values = $before_record ? (array) $before : array();
+			$after_values  = $after_record ? (array) $after : array();
+			foreach ( array_unique( array_merge( array_keys( $before_values ), array_keys( $after_values ) ) ) as $key ) {
+				$compare(
+					isset( $before_values[ $key ] ) ? $before_values[ $key ] : null,
+					isset( $after_values[ $key ] ) ? $after_values[ $key ] : null,
+					array_merge( $path, array( $key ) ),
+					array_key_exists( $key, $before_values ),
+					array_key_exists( $key, $after_values )
+				);
+			}
+			return;
+		}
+
+		if ( $before_set !== $after_set || wp_json_encode( $before ) !== wp_json_encode( $after ) ) {
+			$name      = implode( '.', $path );
+			$changes[] = array(
+				'id'          => $name,
+				'path'        => $name,
+				'current'     => $before_set ? $before : null,
+				'staged'      => $after_set ? $after : null,
+				'current_set' => $before_set,
+				'staged_set'  => $after_set,
+			);
+		}
+	};
+
+	$compare( $current, $staged, array(), true, true );
+	return $changes;
 }
 
 /**

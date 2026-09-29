@@ -58,7 +58,7 @@ Pair with the WordPress MCP Adapter (separate plugin) for desktop/API agent acce
    - `content` — page/post/template/template-part/navigation/CPT. Pass `source_id` to stage an existing entity for editing; omit `source_id` to create a new one. Include `title`, `content`, etc.
    - `styles` — global styles. Pass `variation` (style variation name) and/or `settings`/`styles` (theme.json patches).
    - `setting` — site option. Pass `key` (e.g. `blogname`, `show_on_front`, `page_on_front`) and `value`.
-3. **Inspect**: `changesets/get` or `changesets/list` to review staged changes.
+3. **Inspect**: `changesets/list` with `status: "all"` returns the dashboard list, including published changesets, preview and review links, and change counts. `changesets/get` returns the staged content, settings, theme.json comparison, links, and available actions shown in the dashboard review, plus full staged payloads.
 4. **Preview**: Give the human the `?changeset=<uuid>` URL (or `preview_url` from create). **Wait for human approval.**
 5. **Publish**: After human approval, call `changesets/approve`, then `changesets/publish` to apply all changes to the live site.
 

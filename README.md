@@ -27,6 +27,8 @@ Accumulate site edits in a staging Changeset, preview them on the live site with
 3. **Preview**: Give the human the `?changeset=<uuid>` URL and **wait for approval**
 4. **Publish**: After approval, call `changesets/approve`, then `changesets/publish`
 
+Use `changesets/list` with `status: "all"` for the full dashboard list. Use `changesets/get` for the staged content and settings, theme.json changes, preview and review links, and action availability shown on the review screen.
+
 **What stages**: Content (pages, posts, templates, template parts, navigation, custom post types), global styles, style variations, and settings (site title, homepage, site logo, site icon, featured images).
 
 **Media policy**: Attachment posts are never staged in changesets. Uploads go directly to the Media Library and persist even if the changeset is discarded. Changesets stage only references: featured images (`featured_media`), site logo (`custom_logo`), site icon (`site_icon`), and content HTML/blocks containing attachment IDs.

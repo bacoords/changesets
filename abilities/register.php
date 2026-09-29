@@ -39,7 +39,7 @@ function cs_register_abilities() {
 		'changesets/create',
 		array(
 			'label'               => __( 'Create changeset', 'changesets' ),
-			'description'         => __( 'Create a new changeset staging session for site edits. Returns changeset_id, uuid, and preview_url. All staged edits accumulate in this session until Publish Changeset.', 'changesets' ),
+			'description'         => __( 'Create a new changeset staging session for site edits. Returns changeset_id, uuid, preview_url, and review_url. All staged edits accumulate in this session until Publish Changeset.', 'changesets' ),
 			'category'            => 'changesets',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -57,6 +57,7 @@ function cs_register_abilities() {
 					'changeset_id' => array( 'type' => 'integer' ),
 					'uuid'         => array( 'type' => 'string' ),
 					'preview_url'  => array( 'type' => 'string' ),
+					'review_url'   => array( 'type' => 'string' ),
 					'status'       => array( 'type' => 'string' ),
 				),
 			),
@@ -78,7 +79,7 @@ function cs_register_abilities() {
 		'changesets/get',
 		array(
 			'label'               => __( 'Get changeset', 'changesets' ),
-			'description'         => __( 'Get changeset details including all staged entity drafts. Returns changeset metadata and list of staged items.', 'changesets' ),
+			'description'         => __( 'Get the same list of staged content, settings, theme.json comparison, preview link, review link, and available actions shown in the Changesets dashboard. Also returns the original staged payloads for agents.', 'changesets' ),
 			'category'            => 'changesets',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -95,12 +96,49 @@ function cs_register_abilities() {
 			'output_schema'       => array(
 				'type'       => 'object',
 				'properties' => array(
+					'id'           => array( 'type' => 'integer' ),
 					'changeset_id' => array( 'type' => 'integer' ),
 					'uuid'         => array( 'type' => 'string' ),
 					'title'        => array( 'type' => 'string' ),
 					'status'       => array( 'type' => 'string' ),
+					'modified'     => array( 'type' => 'string' ),
 					'preview_url'  => array( 'type' => 'string' ),
+					'review_url'   => array( 'type' => 'string' ),
+					'exit_preview_url' => array( 'type' => 'string' ),
+					'content'      => array(
+						'type'  => 'array',
+						'items' => array(
+							'type'       => 'object',
+							'properties' => array(
+								'id'        => array( 'type' => 'integer' ),
+								'title'     => array( 'type' => 'string' ),
+								'post_type' => array( 'type' => 'string' ),
+								'change'    => array( 'type' => 'string', 'enum' => array( 'new', 'update' ) ),
+								'source_id' => array( 'type' => 'integer' ),
+							),
+						),
+					),
+					'settings'     => array( 'type' => 'array', 'items' => array( 'type' => 'string' ) ),
+					'theme_json'   => array( 'type' => array( 'object', 'null' ) ),
+					'theme_json_changes' => array(
+						'type'  => 'array',
+						'items' => array(
+							'type'       => 'object',
+							'properties' => array(
+								'path'        => array( 'type' => 'string' ),
+								'current_set' => array( 'type' => 'boolean' ),
+								'staged_set'  => array( 'type' => 'boolean' ),
+							),
+						),
+					),
+					'styles'       => array( 'type' => 'boolean' ),
+					'can_approve'  => array( 'type' => 'boolean' ),
+					'can_publish'  => array( 'type' => 'boolean' ),
+					'exit_url'     => array( 'type' => 'string' ),
 					'staged_items' => array( 'type' => 'array' ),
+					'staged_options' => array( 'type' => array( 'array', 'object' ) ),
+					'staged_styles' => array( 'type' => array( 'object', 'null' ) ),
+					'style_variation' => array( 'type' => array( 'string', 'null' ) ),
 				),
 			),
 			'execute_callback'    => 'cs_ability_get_changeset',
@@ -120,14 +158,26 @@ function cs_register_abilities() {
 		'changesets/list',
 		array(
 			'label'               => __( 'List changesets', 'changesets' ),
-			'description'         => __( 'List open or approved changesets. Returns paginated list with metadata.', 'changesets' ),
+			'description'         => __( 'List open or approved changesets by default. Use status "all" to include the published changesets shown in the dashboard. Returns preview and review links, modified dates, and staged change counts. Supports title search, sorting, and pagination.', 'changesets' ),
 			'category'            => 'changesets',
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'properties'           => array(
 					'status'   => array(
 						'type' => 'string',
-						'enum' => array( 'open', 'approved' ),
+						'enum' => array( 'open', 'approved', 'published', 'all' ),
+					),
+					'search'   => array(
+						'type'        => 'string',
+						'description' => 'Filter changesets by title.',
+					),
+					'sort_by'  => array(
+						'type' => 'string',
+						'enum' => array( 'title', 'status', 'modified' ),
+					),
+					'sort_order' => array(
+						'type' => 'string',
+						'enum' => array( 'asc', 'desc' ),
 					),
 					'per_page' => array(
 						'type'    => 'integer',
@@ -144,8 +194,31 @@ function cs_register_abilities() {
 			'output_schema'       => array(
 				'type'       => 'object',
 				'properties' => array(
-					'items' => array( 'type' => 'array' ),
-					'total' => array( 'type' => 'integer' ),
+					'items'       => array(
+							'type'  => 'array',
+							'items' => array(
+								'type'       => 'object',
+								'properties' => array(
+									'id'             => array( 'type' => 'integer' ),
+									'changeset_id'   => array( 'type' => 'integer' ),
+									'uuid'           => array( 'type' => 'string' ),
+									'title'          => array( 'type' => 'string' ),
+									'status'         => array( 'type' => 'string' ),
+									'modified'       => array( 'type' => 'string' ),
+									'preview_url'    => array( 'type' => 'string' ),
+									'review_url'     => array( 'type' => 'string' ),
+									'exit_preview_url' => array( 'type' => 'string' ),
+									'staged_count'   => array( 'type' => 'integer' ),
+									'content_count'  => array( 'type' => 'integer' ),
+									'settings_count' => array( 'type' => 'integer' ),
+									'has_styles'     => array( 'type' => 'boolean' ),
+								),
+							),
+						),
+					'total'       => array( 'type' => 'integer' ),
+					'page'        => array( 'type' => 'integer' ),
+					'per_page'    => array( 'type' => 'integer' ),
+					'total_pages' => array( 'type' => 'integer' ),
 				),
 			),
 			'execute_callback'    => 'cs_ability_list_changesets',
@@ -450,6 +523,7 @@ function cs_ability_create_changeset( $input ) {
 		'changeset_id' => $changeset_id,
 		'uuid'         => cs_get_changeset_uuid( $changeset_id ),
 		'preview_url'  => cs_get_preview_url( $changeset_id ),
+		'review_url'   => cs_review_url( $changeset_id ),
 		'status'       => cs_get_changeset_status( $changeset_id ),
 	);
 }
@@ -465,6 +539,7 @@ function cs_ability_get_changeset( $input ) {
 		return new WP_Error( 'cs_not_changeset', __( 'Not a changeset.', 'changesets' ) );
 	}
 
+	$review     = cs_workspace_serialize_changeset( $changeset, true );
 	$staged_ids = cs_get_staged_drafts( $changeset_id );
 	$staged_items = array();
 	foreach ( $staged_ids as $staged_id ) {
@@ -486,16 +561,16 @@ function cs_ability_get_changeset( $input ) {
 	$staged_styles = cs_get_staged_global_styles( $changeset_id );
 	$style_variation = cs_get_staged_style_variation( $changeset_id );
 
-	return array(
-		'changeset_id'    => $changeset_id,
-		'uuid'            => cs_get_changeset_uuid( $changeset_id ),
-		'title'           => $changeset->post_title,
-		'status'          => cs_get_changeset_status( $changeset_id ),
-		'preview_url'     => cs_get_preview_url( $changeset_id ),
-		'staged_items'    => $staged_items,
-		'staged_options'  => $staged_options ? $staged_options : array(),
-		'staged_styles'   => $staged_styles ? $staged_styles : null,
-		'style_variation' => $style_variation ? $style_variation : null,
+	return array_merge(
+		$review,
+		array(
+			'changeset_id'    => $changeset_id,
+			'uuid'            => cs_get_changeset_uuid( $changeset_id ),
+			'staged_items'    => $staged_items,
+			'staged_options'  => $staged_options ? $staged_options : array(),
+			'staged_styles'   => $staged_styles ? $staged_styles : null,
+			'style_variation' => $style_variation ? $style_variation : null,
+		)
 	);
 }
 

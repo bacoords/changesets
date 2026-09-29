@@ -1145,51 +1145,61 @@ function cs_discard_changeset( $changeset_id ) {
 /**
  * List changesets.
  *
- * @param array $args Optional. status, per_page, page.
- * @return array { items, total }
+ * @param array $args Optional. status, search, sort_by, sort_order, per_page, page.
+ * @return array { items, total, page, per_page, total_pages }
  */
 function cs_list_changesets( $args = array() ) {
-	$meta_status = array( 'open', 'approved' );
-	if ( isset( $args['status'] ) ) {
-		$meta_status = (array) $args['status'];
-	}
-
-	$query_args = array(
-		'post_type'      => 'changeset',
-		'post_status'    => 'any',
-		'posts_per_page' => isset( $args['per_page'] ) ? (int) $args['per_page'] : 20,
-		'paged'          => isset( $args['page'] ) ? (int) $args['page'] : 1,
-		'meta_query'     => array(
-			array(
-				'key'     => '_changeset_status',
-				'value'   => $meta_status,
-				'compare' => 'IN',
-			),
-		),
-		'orderby'        => 'date',
-		'order'          => 'DESC',
+	$status = isset( $args['status'] ) ? (string) $args['status'] : '';
+	$search = isset( $args['search'] ) ? trim( (string) $args['search'] ) : '';
+	$items  = array_values(
+		array_filter(
+			cs_workspace_list_changesets(),
+			function ( $item ) use ( $status, $search ) {
+				$matches_status = 'all' === $status || ( '' === $status ? in_array( $item['status'], array( 'open', 'approved' ), true ) : $item['status'] === $status );
+				return $matches_status && ( '' === $search || false !== stripos( $item['title'], $search ) );
+			}
+		)
 	);
 
-	$q = new WP_Query( $query_args );
-	$items = array();
-	foreach ( $q->posts as $post ) {
-		$uuid         = cs_get_changeset_uuid( $post->ID );
-		$status       = cs_get_changeset_status( $post->ID );
-		$staged_count = count( cs_get_staged_drafts( $post->ID ) );
+	$sort_by    = isset( $args['sort_by'] ) && in_array( $args['sort_by'], array( 'title', 'status', 'modified' ), true ) ? $args['sort_by'] : 'modified';
+	$sort_order = isset( $args['sort_order'] ) && 'asc' === $args['sort_order'] ? 1 : -1;
+	usort(
+		$items,
+		function ( $left, $right ) use ( $sort_by, $sort_order ) {
+			$comparison = strnatcasecmp( (string) $left[ $sort_by ], (string) $right[ $sort_by ] );
+			return $comparison ? $sort_order * $comparison : $sort_order * ( $left['id'] <=> $right['id'] );
+		}
+	);
 
-		$items[] = array(
-			'changeset_id' => (int) $post->ID,
-			'uuid'         => $uuid,
-			'title'        => $post->post_title,
-			'status'       => $status,
-			'staged_count' => $staged_count,
-			'created_gmt'  => $post->post_date_gmt,
+	$total    = count( $items );
+	$per_page = isset( $args['per_page'] ) ? max( 1, min( 100, (int) $args['per_page'] ) ) : 20;
+	$page     = isset( $args['page'] ) ? max( 1, (int) $args['page'] ) : 1;
+	$items    = array_slice( $items, ( $page - 1 ) * $per_page, $per_page );
+
+	foreach ( $items as &$item ) {
+		$id            = $item['id'];
+		$content_count = count( cs_get_staged_drafts( $id ) );
+		$item          = array_merge(
+			$item,
+			array(
+				'changeset_id'  => $id,
+				'uuid'          => cs_get_changeset_uuid( $id ),
+				'staged_count'  => $content_count,
+				'content_count' => $content_count,
+				'settings_count' => count( cs_get_staged_options( $id ) ),
+				'has_styles'    => (bool) ( cs_get_staged_global_styles( $id ) || cs_get_staged_style_variation( $id ) ),
+				'created_gmt'   => get_post_field( 'post_date_gmt', $id ),
+			)
 		);
 	}
+	unset( $item );
 
 	return array(
-		'items' => $items,
-		'total' => (int) $q->found_posts,
+		'items'       => $items,
+		'total'       => $total,
+		'page'        => $page,
+		'per_page'    => $per_page,
+		'total_pages' => (int) ceil( $total / $per_page ),
 	);
 }
 

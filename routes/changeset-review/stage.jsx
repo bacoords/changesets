@@ -46,26 +46,6 @@ const initialContentView = {
   layout: { density: 'balanced' },
 };
 
-const isRecord = ( value ) => value !== null && typeof value === 'object' && ! Array.isArray( value );
-
-const getThemeJsonChanges = ( current, staged ) => {
-  const changes = [];
-  const compare = ( before, after, path = [] ) => {
-    if ( isRecord( before ) || isRecord( after ) ) {
-      if ( ( before === undefined || isRecord( before ) ) && ( after === undefined || isRecord( after ) ) ) {
-        const keys = new Set( [ ...Object.keys( before || {} ), ...Object.keys( after || {} ) ] );
-        keys.forEach( ( key ) => compare( before?.[ key ], after?.[ key ], [ ...path, key ] ) );
-        return;
-      }
-    }
-    if ( JSON.stringify( before ) !== JSON.stringify( after ) ) {
-      changes.push( { id: path.join( '.' ), path: path.join( '.' ), before, after } );
-    }
-  };
-  compare( current, staged );
-  return changes;
-};
-
 const ThemeJsonValue = ( { value, path } ) => {
   if ( value === undefined ) {
     return <span>{ __( 'Not set', 'changesets' ) }</span>;
@@ -87,8 +67,8 @@ const ThemeJsonValue = ( { value, path } ) => {
 
 const themeJsonFields = [
   { id: 'path', type: 'text', enableGlobalSearch: true, label: __( 'theme.json path', 'changesets' ) },
-  { id: 'before', type: 'text', label: __( 'Current', 'changesets' ), render: ( { item } ) => <ThemeJsonValue value={ item.before } path={ item.path } /> },
-  { id: 'after', type: 'text', label: __( 'Staged', 'changesets' ), render: ( { item } ) => <ThemeJsonValue value={ item.after } path={ item.path } /> },
+  { id: 'current', type: 'text', label: __( 'Current', 'changesets' ), render: ( { item } ) => <ThemeJsonValue value={ item.current_set ? item.current : undefined } path={ item.path } /> },
+  { id: 'staged', type: 'text', label: __( 'Staged', 'changesets' ), render: ( { item } ) => <ThemeJsonValue value={ item.staged_set ? item.staged : undefined } path={ item.path } /> },
 ];
 
 const initialThemeJsonView = {
@@ -98,7 +78,7 @@ const initialThemeJsonView = {
   search: '',
   filters: [],
   titleField: 'path',
-  fields: [ 'before', 'after' ],
+  fields: [ 'current', 'staged' ],
   layout: { density: 'balanced' },
 };
 
@@ -123,10 +103,7 @@ export const stage = () => {
     [ item, view ]
   );
 
-  const themeJsonRows = useMemo(
-    () => item?.theme_json?.staged ? getThemeJsonChanges( item.theme_json.current, item.theme_json.staged ) : [],
-    [ item ]
-  );
+  const themeJsonRows = item?.theme_json_changes || [];
   const themeJsonChanges = useMemo(
     () => filterSortAndPaginate( themeJsonRows, themeJsonView, themeJsonFields ),
     [ themeJsonRows, themeJsonView ]
