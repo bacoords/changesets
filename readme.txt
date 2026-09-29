@@ -28,7 +28,7 @@ The live site stays untouched until Publish. Preview shows exactly what visitors
 - **Styles**: Global styles and style variations
 - **Settings**: Site title, homepage settings, and more
 
-Exposes Abilities (`changesets/create`, `changesets/save`, `changesets/approve`, `changesets/publish`) so compatible agents can discover the workflow via the Abilities API.
+Exposes Abilities (`changesets/create`, `changesets/save`, `changesets/set-visibility`, `changesets/approve`, `changesets/publish`, and review actions) so compatible agents can discover the workflow via the Abilities API.
 
 Pair with the WordPress MCP Adapter (separate plugin) for desktop/API agent access.
 
@@ -59,17 +59,22 @@ Pair with the WordPress MCP Adapter (separate plugin) for desktop/API agent acce
    - `styles` — global styles. Pass `variation` (style variation name) and/or `settings`/`styles` (theme.json patches).
    - `setting` — site option. Pass `key` (e.g. `blogname`, `show_on_front`, `page_on_front`) and `value`.
 3. **Inspect**: `changesets/list` with `status: "all"` returns published changesets too, with preview links and change counts. `changesets/get` returns staged content, settings, theme.json comparison, preview and exit links, available actions, and full staged payloads.
-4. **Preview**: Give the human the `?changeset=<uuid>` URL (or `preview_url` from create). **Wait for human approval.**
-5. **Publish**: After human approval, call `changesets/approve`, then `changesets/publish` to apply all changes to the live site.
+4. **Preview**: Give the human the `?changeset=<uuid>` URL (or `preview_url` from create) for review.
+5. **Approve**: A signed-in reviewer with `approve_changesets` uses the preview drawer or `changesets/approve`.
+6. **Publish**: An account with `publish_changesets` calls `changesets/publish` after approval to apply changes to the live site.
 
 **Never edit live content directly**. Always use the Changesets workflow. If the human explicitly asks you to repair something live outside of Changesets, only do so after confirming that's what they want.
 
 **Preview notes**: The preview query parameter is `changeset` (cookie name is the same). Logged-out visitors can use the standalone "Exit Changeset" bar; anyone can exit via `?cs_exit_preview=1`.
 
-**UI note**: No Changesets screen is registered in wp-admin. During an active preview, the changeset badge opens a left-side panel listing staged content, theme styles, and site settings; content with a permalink links to its preview. Logged-in users see the badge in the native admin bar. Logged-out visitors can open the same panel from the standalone preview bar, which also has an Exit Changeset control. Use the abilities to inspect, approve, and publish.
+**Visibility**: New changesets default to `public` (anyone with the UUID link). Use the optional `visibility` input on `changesets/create` or `changesets/set-visibility` for an open or approved changeset. Values: `public`, `logged_in` (any signed-in WordPress user), and `capability` (users with `manage_changesets`). Setting visibility requires `manage_changesets`. `changesets/get` and `changesets/list` return both stored and effective visibility. Set `CHANGESETS_DEFAULT_VISIBILITY` in wp-config.php to choose the default for new changesets; older changesets without stored visibility remain public links. `CHANGESETS_PRIVATE_PREVIEWS` always overrides per-changeset visibility and requires `manage_changesets` for every preview.
+
+**Approval**: Authenticated reviewers with `approve_changesets` can approve in the review panel or via `changesets/approve`. Public visitors never see the button and cannot use the action. Approval records approver and time and changes status to approved; it does not publish. `changesets/publish` separately requires `publish_changesets` and an approved changeset. Use a proposing agent account without approval or publishing capability.
+
+**UI note**: No Changesets screen is registered in wp-admin. During an active preview, the changeset badge opens a left-side panel listing staged content, theme styles, site settings, and effective visibility; content with a permalink links to its preview. Logged-in users see the badge in the native admin bar. Logged-out visitors can open the same panel from the standalone preview bar, which also has an Exit Changeset control. Use the abilities to inspect, approve, and publish.
 
 **Agent brief** (paste-ready):
-You have access to a WordPress 7.0+ site. Before staging changes, verify Gutenberg, Changesets, and WordPress MCP Adapter are installed and active. If missing, ask permission to install them. Once active and connected: (1) create a changeset, (2) stage all changes using changesets/save (type: content/styles/setting), (3) give the human the preview URL and wait for approval, (4) after approval call changesets/approve then changesets/publish. Never edit live content directly.
+You have access to a WordPress 7.0+ site. Before staging changes, verify Gutenberg, Changesets, and WordPress MCP Adapter are installed and active. If missing, ask permission to install them. Once active and connected: (1) create a changeset, (2) stage all changes using changesets/save (type: content/styles/setting), (3) give a human reviewer the preview URL, (4) let an authenticated reviewer approve in the preview drawer or with changesets/approve, (5) let an authorized publisher call changesets/publish. Never edit live content directly.
 
 == Changelog ==
 

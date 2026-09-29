@@ -6,7 +6,7 @@ Accumulate site edits in a staging Changeset, preview them on the live site with
 
 **Agent prompt** (paste-ready):
 
-> You have access to a WordPress site. Before staging changes: (1) Check that WordPress 7.0+, Gutenberg, Changesets, and WordPress MCP Adapter are installed and active by verifying `changesets/*` abilities are available via MCP. (2) If missing, explain which plugins are required, ask permission to install, then install if allowed. (3) Once plugins are active, ensure MCP connection with Application Password. Then workflow: create changeset → stage changes with changesets/save (type: content/styles/setting) → give human the preview URL and wait for approval → after approval call changesets/approve then changesets/publish. Never edit live content directly unless human explicitly requests a repair outside Changesets.
+> You have access to a WordPress site. Before staging changes: (1) Check that WordPress 7.0+, Gutenberg, Changesets, and WordPress MCP Adapter are installed and active by verifying `changesets/*` abilities are available via MCP. (2) If missing, explain which plugins are required, ask permission to install, then install if allowed. (3) Once plugins are active, ensure MCP connection with Application Password. Then workflow: create changeset → stage changes with changesets/save (type: content/styles/setting) → give a human reviewer the preview URL. The reviewer approves in the preview drawer or through authenticated MCP access; an authorized publisher may then call changesets/publish. Never edit live content directly unless human explicitly requests a repair outside Changesets.
 
 **Setup checklist** (verify BEFORE asking for credentials):
 1. Is the site running WordPress 7.0+ with Gutenberg, Changesets, and MCP Adapter active?
@@ -24,8 +24,9 @@ Accumulate site edits in a staging Changeset, preview them on the live site with
    - `content` — page/post/template/template-part/navigation/CPT
    - `styles` — global styles and style variations
    - `setting` — site options (blogname, page_on_front, etc.)
-3. **Preview**: Give the human the `?changeset=<uuid>` URL and **wait for approval**
-4. **Publish**: After approval, call `changesets/approve`, then `changesets/publish`
+3. **Preview**: Give the human the `?changeset=<uuid>` URL for review
+4. **Approve**: A signed-in reviewer with `approve_changesets` approves in the preview drawer or via `changesets/approve`
+5. **Publish**: An account with `publish_changesets` calls `changesets/publish` after approval
 
 Use `changesets/list` with `status: "all"` to inspect all changesets, including published ones. Use `changesets/get` for staged content, settings, theme.json changes, preview links, and available actions.
 
@@ -46,7 +47,11 @@ See [readme.txt](readme.txt) for complete documentation.
 3. Create an Application Password (propose-only user without publish permissions recommended)
 4. Connect your MCP client to the site using the Application Password
 
-Changesets has no wp-admin screen. Create, inspect, approve, and publish changesets through its abilities. During an active preview, the changeset badge opens a WordPress Design System panel from the left with every staged content item, theme style change, and site setting. Content with a permalink links to its changeset preview. Logged-in users see the badge in the native admin bar; logged-out visitors see it with an Exit Changeset control in a standalone preview bar.
+Changesets has no wp-admin screen. Create, inspect, approve, and publish changesets through its abilities. During an active preview, the changeset badge opens a WordPress Design System panel from the left with every staged content item, theme style change, site setting, and effective preview visibility. Content with a permalink links to its changeset preview. Logged-in users see the badge in the native admin bar; logged-out visitors see it with an Exit Changeset control in a standalone preview bar.
+
+**Per-changeset visibility**: New changesets default to `public` (anyone with the UUID link), preserving the existing preview behavior. Pass `visibility` to `changesets/create` or change an open or approved changeset with `changesets/set-visibility` (requires `manage_changesets`). Supported values are `public`, `logged_in` (any WordPress user), and `capability` (users with `manage_changesets`). `changesets/list` and `changesets/get` return both the stored `visibility` and `effective_visibility`.
+
+To change the default for **new** changesets, set `CHANGESETS_DEFAULT_VISIBILITY` to one of those values in `wp-config.php`, for example `define( 'CHANGESETS_DEFAULT_VISIBILITY', 'logged_in' );`. Existing changesets without stored visibility retain the public-link behavior. An invalid configured value fails closed to `capability`. `changesets/status` reports the default and whether the site-wide override is active. The setting below always overrides per-changeset visibility.
 
 **Private preview mode** (optional): Require logged-in users with `manage_changesets` capability to preview changesets. Add to `wp-config.php`:
 
@@ -54,7 +59,9 @@ Changesets has no wp-admin screen. Create, inspect, approve, and publish changes
 define( 'CHANGESETS_PRIVATE_PREVIEWS', true );
 ```
 
-When enabled, only logged-in users with the appropriate capability can use `?changeset=<uuid>` preview URLs. When disabled (default), anyone with the UUID can preview.
+When enabled, only logged-in users with `manage_changesets` can use `?changeset=<uuid>` preview URLs, even if a changeset is marked `public` or `logged_in`.
+
+**Approval**: An authenticated reviewer with `approve_changesets` can approve from the review drawer or through `changesets/approve`. The action records the approver and time and moves an open changeset to `approved`; it does not publish any staged edits. The drawer never shows Approve to a public visitor or a user without that capability. `changesets/publish` separately requires `publish_changesets` and refuses to publish until approval. Give proposing agents an account without either approval or publishing capability so they cannot approve their own work.
 
 ## License
 

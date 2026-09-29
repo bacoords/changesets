@@ -104,6 +104,15 @@
 			var state = useState( false );
 			var isOpen = state[ 0 ];
 			var setOpen = state[ 1 ];
+			var statusState = useState( data.status );
+			var statusValue = statusState[ 0 ];
+			var setStatus = statusState[ 1 ];
+			var approvalState = useState( false );
+			var approving = approvalState[ 0 ];
+			var setApproving = approvalState[ 1 ];
+			var errorState = useState( '' );
+			var approvalError = errorState[ 0 ];
+			var setApprovalError = errorState[ 1 ];
 
 			useEffect( function () {
 				function openPanel( event ) {
@@ -125,13 +134,60 @@
 				} );
 			}
 
+			function approveChangeset() {
+				if ( ! data.approval || approving ) {
+					return;
+				}
+				setApproving( true );
+				setApprovalError( '' );
+				var body = new window.URLSearchParams();
+				body.set( 'action', 'cs_approve_changeset' );
+				body.set( 'changeset_id', String( data.changesetId ) );
+				body.set( 'nonce', data.approval.nonce );
+				window
+					.fetch( data.approval.url, {
+						method: 'POST',
+						credentials: 'same-origin',
+						headers: {
+							'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+						},
+						body: body.toString(),
+					} )
+					.then( function ( response ) {
+						return response.json().then( function ( payload ) {
+							if ( ! response.ok || ! payload.success ) {
+								throw new Error(
+									payload.data && payload.data.message
+										? payload.data.message
+										: data.labels.approveError
+								);
+							}
+							return payload;
+						} );
+					} )
+					.then( function () {
+						setStatus( 'approved' );
+						setApproving( false );
+					} )
+					.catch( function ( error ) {
+						setApprovalError( error.message || data.labels.approveError );
+						setApproving( false );
+					} );
+			}
+
 			if ( ! isOpen ) {
 				return null;
 			}
 
 			var changeCount =
 				data.content.length + data.styles.length + data.settings.length;
-			var status = data.labels[ data.status ] || data.status;
+			var status = data.labels[ statusValue ] || statusValue;
+			var visibilityLabels = {
+				public: data.labels.visibilityPublic,
+				logged_in: data.labels.visibilityLoggedIn,
+				capability: data.labels.visibilityCapability,
+			};
+			var visibility = visibilityLabels[ data.effectiveVisibility ];
 
 			return el(
 				Modal,
@@ -146,11 +202,25 @@
 					'div',
 					{ className: 'cs-panel-summary' },
 					el(
-						'span',
-						{ className: 'cs-panel-status' },
-						data.labels.status,
-						': ',
-						status
+						'div',
+						{ className: 'cs-panel-summary__details' },
+						el(
+							'span',
+							{ className: 'cs-panel-status', 'aria-live': 'polite' },
+							data.labels.status,
+							': ',
+							status
+						),
+						el(
+							'span',
+							{ className: 'cs-panel-visibility' },
+							data.labels.visibility,
+							': ',
+							visibility,
+							data.visibility !== data.effectiveVisibility
+								? ' (' + data.labels.visibilityOverride + ')'
+								: null
+						)
 					),
 					el(
 						'span',
@@ -176,7 +246,28 @@
 								'cs-panel-section--styles'
 							)
 					  )
-					: el( 'p', { className: 'cs-panel-empty' }, data.labels.empty )
+					: el( 'p', { className: 'cs-panel-empty' }, data.labels.empty ),
+				data.approval && 'open' === statusValue
+					? el(
+							'div',
+							{ className: 'cs-panel-actions' },
+							el(
+								Button,
+								{
+									variant: 'primary',
+									__next40pxDefaultSize: true,
+									accessibleWhenDisabled: true,
+									disabled: approving,
+									isBusy: approving,
+									onClick: approveChangeset,
+								},
+								approving ? data.labels.approving : data.labels.approve
+							)
+					  )
+					: null,
+				approvalError
+					? el( 'p', { className: 'cs-panel-approval-error', role: 'alert' }, approvalError )
+					: null
 			);
 		}
 

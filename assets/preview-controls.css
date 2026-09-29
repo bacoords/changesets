@@ -110,6 +110,17 @@
 	font-size: var(--wpds-typography-font-size-sm);
 }
 
+.cs-panel-summary__details {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-gap-xs);
+	min-width: 0;
+}
+
+.cs-panel-total {
+	flex: 0 0 auto;
+}
+
 .cs-panel-group.components-panel {
 	border: 0;
 	background: var(--wpds-color-background-surface-neutral);
@@ -211,6 +222,17 @@
 .cs-panel-empty {
 	padding-inline: var(--wpds-dimension-padding-lg);
 	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.cs-panel-actions {
+	padding: var(--wpds-dimension-padding-lg);
+	border-top: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
+}
+
+.cs-panel-approval-error {
+	margin: 0;
+	padding-inline: var(--wpds-dimension-padding-lg);
+	color: var(--wpds-color-foreground-content-error);
 }
 
 @media (prefers-reduced-motion: reduce) {
