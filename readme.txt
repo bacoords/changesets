@@ -67,6 +67,8 @@ Pair with the WordPress MCP Adapter (separate plugin) for desktop/API agent acce
 
 **Preview notes**: The preview query parameter is `changeset` (cookie name is the same). Logged-out visitors can use the standalone "Exit Changeset" bar; anyone can exit via `?cs_exit_preview=1`.
 
+**Front-end only**: Preview URLs and cookies do not affect wp-admin, the Site Editor, REST, AJAX, or CLI requests. Normal editor saves still change the live site; use Changesets abilities to stage edits.
+
 **Visibility**: New changesets default to `public` (anyone with the UUID link). Use the optional `visibility` input on `changesets/create` or `changesets/set-visibility` for an open or approved changeset. Values: `public`, `logged_in` (any signed-in WordPress user), and `capability` (users with `manage_changesets`). Setting visibility requires `manage_changesets`. `changesets/get` and `changesets/list` return both stored and effective visibility. Set `CHANGESETS_DEFAULT_VISIBILITY` in wp-config.php to choose the default for new changesets; older changesets without stored visibility remain public links. `CHANGESETS_PRIVATE_PREVIEWS` always overrides per-changeset visibility and requires `manage_changesets` for every preview.
 
 **Approval**: Authenticated reviewers with `approve_changesets` can approve in the review panel or via `changesets/approve`. Public visitors never see the button and cannot use the action. Approval records approver and time and changes status to approved; it does not publish. `changesets/publish` separately requires `publish_changesets` and an approved changeset. Use a proposing agent account without approval or publishing capability.

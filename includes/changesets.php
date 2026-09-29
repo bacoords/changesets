@@ -1375,11 +1375,42 @@ function cs_clear_preview_cookie() {
 }
 
 /**
+ * Whether this request can render a front-end changeset preview.
+ *
+ * Admin, editor, REST, AJAX, cron, and CLI requests must read live data even
+ * when the browser carries a preview cookie. Changeset abilities still work
+ * in those contexts because they address changesets explicitly by ID.
+ *
+ * @return bool
+ */
+function cs_is_frontend_preview_context() {
+	if ( is_admin() || wp_doing_ajax() || wp_doing_cron() || wp_is_rest_endpoint() ) {
+		return false;
+	}
+	if ( ( defined( 'WP_CLI' ) && WP_CLI ) || ( defined( 'XMLRPC_REQUEST' ) && XMLRPC_REQUEST ) || ( defined( 'WP_INSTALLING' ) && WP_INSTALLING ) ) {
+		return false;
+	}
+	if ( isset( $GLOBALS['pagenow'] ) && in_array( $GLOBALS['pagenow'], array( 'wp-login.php', 'wp-register.php', 'wp-signup.php', 'wp-activate.php' ), true ) ) {
+		return false;
+	}
+	if ( isset( $_GET['rest_route'] ) || ( isset( $GLOBALS['wp']->query_vars['rest_route'] ) ) ) {
+		return false;
+	}
+	if ( function_exists( 'is_customize_preview' ) && is_customize_preview() ) {
+		return false;
+	}
+	return true;
+}
+
+/**
  * Get active preview changeset UUID from query or cookie.
  *
  * @return string|null
  */
 function cs_get_active_preview_uuid() {
+	if ( ! cs_is_frontend_preview_context() ) {
+		return null;
+	}
 	if ( isset( $_GET['changeset'] ) && $_GET['changeset'] ) {
 		return sanitize_text_field( wp_unslash( $_GET['changeset'] ) );
 	}
@@ -1393,6 +1424,10 @@ function cs_get_active_preview_uuid() {
  * Initialize preview mode: set cookie from query param.
  */
 function cs_init_preview() {
+	if ( ! cs_is_frontend_preview_context() ) {
+		return;
+	}
+
 	// Exit first — clear cookie even if UUID only lived in the cookie.
 	if ( isset( $_GET['cs_exit_preview'] ) ) {
 		cs_clear_preview_cookie();
@@ -1430,7 +1465,9 @@ function cs_init_preview() {
 		cs_set_preview_cookie( $uuid );
 	}
 }
-add_action( 'init', 'cs_init_preview' );
+// REST dispatch happens at parse_request priority 10 and exits before preview setup.
+// Front-end query_posts still runs afterward, so staged options can affect it.
+add_action( 'parse_request', 'cs_init_preview', 11 );
 
 
 
@@ -1445,6 +1482,9 @@ function cs_preview_staged_index() {
 	static $index = null;
 	static $loaded = false;
 
+	if ( ! cs_is_frontend_preview_context() ) {
+		return null;
+	}
 	if ( $loaded ) {
 		return $index;
 	}
@@ -1580,9 +1620,6 @@ function cs_preview_filter_posts( $query ) {
 	if ( $added || ! cs_get_active_preview_uuid() ) {
 		return;
 	}
-	if ( is_admin() && ! ( defined( 'DOING_AJAX' ) && DOING_AJAX ) ) {
-		return;
-	}
 	$added = true;
 	add_filter( 'posts_results', 'cs_overlay_staged_content', 10, 2 );
 }
@@ -1621,7 +1658,7 @@ function cs_preview_init_dynamic_filters() {
 		}
 	}
 }
-add_action( 'init', 'cs_preview_init_dynamic_filters', 20 );
+add_action( 'parse_request', 'cs_preview_init_dynamic_filters', 20 );
 
 /**
  * Overlay staged options during preview.
@@ -1716,6 +1753,9 @@ add_filter( 'wp_theme_json_data_user', 'cs_preview_global_styles' );
  */
 function cs_preview_block_templates() {
 	static $templates = null;
+	if ( ! cs_is_frontend_preview_context() ) {
+		return array();
+	}
 	if ( null !== $templates ) {
 		return $templates;
 	}

@@ -123,7 +123,7 @@ function cs_render_changeset_bar_footer_fallback() {
  * @param WP_Admin_Bar $admin_bar Admin bar instance.
  */
 function cs_add_admin_bar_menu( $admin_bar ) {
-	if ( ! is_user_logged_in() ) {
+	if ( is_admin() || ! is_user_logged_in() ) {
 		return;
 	}
 
@@ -312,6 +312,9 @@ add_action( 'wp_ajax_cs_approve_changeset', 'cs_ajax_approve_changeset' );
  * Load the official WPDS tokens and shared preview controls when needed.
  */
 function cs_enqueue_preview_controls() {
+	if ( ! cs_is_frontend_preview_context() ) {
+		return;
+	}
 	$uuid = cs_get_active_preview_uuid();
 	$changeset = $uuid ? cs_get_changeset( $uuid ) : null;
 	if ( ! $changeset || ! cs_user_can_preview_changeset( $changeset->ID ) ) {
@@ -329,7 +332,6 @@ function cs_enqueue_preview_controls() {
 	wp_enqueue_style( 'cs-preview-controls', CS_URL . 'assets/preview-controls.css', array( 'wp-theme', 'wp-components' ), CS_VERSION );
 }
 add_action( 'wp_enqueue_scripts', 'cs_enqueue_preview_controls' );
-add_action( 'admin_enqueue_scripts', 'cs_enqueue_preview_controls' );
 
 /**
  * Mark preview sessions on <html> for admin-bar-like offset.
