@@ -7,21 +7,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/**
- * The generated page needs the Boot script module supplied by WordPress 7.0+.
- * Keep the classic list available on older installations.
- *
- * @return bool
- */
-function cs_workspace_available() {
-	return function_exists( 'wp_register_script_module' )
-		&& file_exists( CS_PATH . 'build/build.php' )
-		&& file_exists( ABSPATH . WPINC . '/js/dist/script-modules/boot/index.min.asset.php' );
-}
-
-if ( cs_workspace_available() ) {
-	require_once CS_PATH . 'build/build.php';
-}
+require_once CS_PATH . 'build/build.php';
 
 /**
  * URL for the workspace or one of its routes.
@@ -30,26 +16,31 @@ if ( cs_workspace_available() ) {
  * @return string
  */
 function cs_workspace_url( $route = '/' ) {
-	$url = admin_url( 'admin.php?page=changesets-wp-admin' );
+	$url = admin_url( 'tools.php?page=changesets-wp-admin' );
 	return '/' === $route ? $url : add_query_arg( 'p', $route, $url );
 }
 
 /**
- * Replace the changeset post list menu with the generated wp-admin page.
+ * URL for reviewing a changeset in the workspace.
+ *
+ * @param int $changeset_id Changeset ID.
+ * @return string
+ */
+function cs_review_url( $changeset_id ) {
+	return cs_workspace_url( '/review/' . (int) $changeset_id );
+}
+
+/**
+ * Place the generated wp-admin workspace under Tools.
  */
 function cs_register_workspace_menu() {
-	if ( ! cs_workspace_available() ) {
-		return;
-	}
-
-	add_menu_page(
+	add_submenu_page(
+		'tools.php',
 		__( 'Changesets', 'changesets' ),
 		__( 'Changesets', 'changesets' ),
 		'manage_changesets',
 		'changesets-wp-admin',
-		'cs_changesets_wp_admin_render_page',
-		'dashicons-clipboard',
-		26
+		'cs_changesets_wp_admin_render_page'
 	);
 }
 add_action( 'admin_menu', 'cs_register_workspace_menu' );
@@ -60,7 +51,7 @@ add_action( 'admin_menu', 'cs_register_workspace_menu' );
  * @param string $hook_suffix Admin page hook.
  */
 function cs_workspace_enqueue_api_fetch( $hook_suffix ) {
-	if ( 'toplevel_page_changesets-wp-admin' === $hook_suffix ) {
+	if ( 'tools_page_changesets-wp-admin' === $hook_suffix ) {
 		wp_enqueue_script( 'wp-api-fetch' );
 		wp_enqueue_style( 'cs-design-tokens', CS_URL . 'build/vendor/design-tokens.css', array(), CS_VERSION );
 		wp_enqueue_style( 'cs-dataviews', CS_URL . 'build/vendor/dataviews.css', array( 'wp-components', 'cs-design-tokens' ), CS_VERSION );
@@ -70,14 +61,19 @@ function cs_workspace_enqueue_api_fetch( $hook_suffix ) {
 add_action( 'admin_enqueue_scripts', 'cs_workspace_enqueue_api_fetch', 5 );
 
 /**
- * Preserve bookmarks to the former post list.
+ * Preserve bookmarks to the former post list and review page.
  */
 function cs_redirect_classic_changeset_list() {
-	if ( ! cs_workspace_available() || ! current_user_can( 'manage_changesets' ) ) {
+	if ( ! current_user_can( 'manage_changesets' ) ) {
 		return;
 	}
 
 	global $pagenow;
+	if ( 'admin.php' === $pagenow && isset( $_GET['page'] ) && 'changesets-wp-admin' === sanitize_key( wp_unslash( $_GET['page'] ) ) ) {
+		$route = isset( $_GET['p'] ) ? sanitize_text_field( wp_unslash( $_GET['p'] ) ) : '/';
+		wp_safe_redirect( cs_workspace_url( $route ) );
+		exit;
+	}
 	if ( 'edit.php' === $pagenow && isset( $_GET['post_type'] ) && 'changeset' === sanitize_key( wp_unslash( $_GET['post_type'] ) ) ) {
 		wp_safe_redirect( cs_workspace_url() );
 		exit;
@@ -88,7 +84,8 @@ function cs_redirect_classic_changeset_list() {
 		exit;
 	}
 }
-add_action( 'admin_init', 'cs_redirect_classic_changeset_list' );
+// Run before Core checks access to unregistered legacy plugin pages.
+add_action( 'admin_menu', 'cs_redirect_classic_changeset_list', 1 );
 
 /**
  * Check access to the workspace REST API.
@@ -107,23 +104,9 @@ function cs_register_workspace_rest_routes() {
 		'changesets/v1',
 		'/workspace',
 		array(
-			array(
-				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => 'cs_workspace_list_changesets',
-				'permission_callback' => 'cs_workspace_can_manage',
-			),
-			array(
-				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => 'cs_workspace_create_changeset',
-				'permission_callback' => 'cs_workspace_can_manage',
-				'args'                => array(
-					'title' => array(
-						'type'              => 'string',
-						'required'          => true,
-						'sanitize_callback' => 'sanitize_text_field',
-					),
-				),
-			),
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => 'cs_workspace_list_changesets',
+			'permission_callback' => 'cs_workspace_can_manage',
 		)
 	);
 
@@ -231,26 +214,6 @@ function cs_workspace_get_changeset( $request ) {
 	}
 
 	return cs_workspace_serialize_changeset( $changeset, true );
-}
-
-/**
- * Create a new changeset from the workspace.
- *
- * @param WP_REST_Request $request REST request.
- * @return WP_REST_Response|WP_Error
- */
-function cs_workspace_create_changeset( $request ) {
-	$title = trim( $request['title'] );
-	if ( '' === $title ) {
-		return new WP_Error( 'cs_empty_title', __( 'Enter a changeset title.', 'changesets' ), array( 'status' => 400 ) );
-	}
-
-	$id = cs_create_changeset( $title );
-	if ( is_wp_error( $id ) ) {
-		return $id;
-	}
-
-	return new WP_REST_Response( cs_workspace_serialize_changeset( get_post( $id ) ), 201 );
 }
 
 /**

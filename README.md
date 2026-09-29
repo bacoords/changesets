@@ -6,10 +6,10 @@ Accumulate site edits in a staging Changeset, preview them on the live site with
 
 **Agent prompt** (paste-ready):
 
-> You have access to a WordPress site. Before staging changes: (1) Check if Changesets and WordPress MCP Adapter are installed and active by verifying `changesets/*` abilities are available via MCP. (2) If missing, explain both plugins are required, ask permission to install, then install if allowed. (3) Once plugins are active, ensure MCP connection with Application Password. Then workflow: create changeset → stage changes with changesets/save (type: content/styles/setting) → give human the preview URL and wait for approval → after approval call changesets/approve then changesets/publish. Never edit live content directly unless human explicitly requests a repair outside Changesets.
+> You have access to a WordPress site. Before staging changes: (1) Check that WordPress 7.0+, Gutenberg, Changesets, and WordPress MCP Adapter are installed and active by verifying `changesets/*` abilities are available via MCP. (2) If missing, explain which plugins are required, ask permission to install, then install if allowed. (3) Once plugins are active, ensure MCP connection with Application Password. Then workflow: create changeset → stage changes with changesets/save (type: content/styles/setting) → give human the preview URL and wait for approval → after approval call changesets/approve then changesets/publish. Never edit live content directly unless human explicitly requests a repair outside Changesets.
 
 **Setup checklist** (verify BEFORE asking for credentials):
-1. Are Changesets + MCP Adapter installed and active?
+1. Is the site running WordPress 7.0+ with Gutenberg, Changesets, and MCP Adapter active?
 2. Verify by checking if `changesets/*` abilities are available via MCP tools
 3. If missing: Ask permission to install, then install if allowed
 4. Only after plugins are active: Request Application Password / MCP connection if not connected
@@ -37,11 +37,14 @@ See [readme.txt](readme.txt) for complete documentation.
 
 ## Setup
 
-**Requirements**: Hosted WordPress 6.9+ (not Playground)
+**Requirements**: Hosted WordPress 7.0+ and the Gutenberg plugin (not Playground)
 
-1. Install and activate **Changesets** and **WordPress MCP Adapter** on your WordPress site
-2. Create an Application Password (propose-only user without publish permissions recommended)
-3. Connect your MCP client to the site using the Application Password
+1. Install and activate **Gutenberg** and **Changesets** on your WordPress site
+2. Install and activate **WordPress MCP Adapter** for agent access
+3. Create an Application Password (propose-only user without publish permissions recommended)
+4. Connect your MCP client to the site using the Application Password
+
+The Changesets admin workspace is under **Tools → Changesets**. It uses Gutenberg's `@wordpress/build` pages and routes.
 
 **Private preview mode** (optional): Require logged-in users with `manage_changesets` capability to preview changesets. Add to `wp-config.php`:
 

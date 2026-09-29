@@ -3,7 +3,8 @@
  * Plugin Name:       Changesets
  * Description:       Let agents accumulate edits in a Changeset, preview them on the real site, then Publish Changeset after human approval.
  * Version:           0.5.3
- * Requires at least: 6.9
+ * Requires at least: 7.0
+ * Requires Plugins: gutenberg
  * Requires PHP:      7.4
  * Author:            Rich Tabor
  * License:           GPL-2.0-or-later
@@ -23,9 +24,8 @@ define( 'CS_META_SOURCE', '_changeset_source' );
 
 require_once CS_PATH . 'includes/caps.php';
 require_once CS_PATH . 'includes/changesets.php';
-require_once CS_PATH . 'includes/admin.php';
-require_once CS_PATH . 'includes/admin-workflow.php';
 require_once CS_PATH . 'includes/workspace.php';
+require_once CS_PATH . 'includes/admin.php';
 require_once CS_PATH . 'abilities/register.php';
 
 /**

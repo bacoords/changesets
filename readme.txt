@@ -1,7 +1,8 @@
 === Changesets ===
 Contributors: richtabor
-Requires at least: 6.9
-Tested up to: 6.9
+Requires at least: 7.0
+Tested up to: 7.1
+Requires Plugins: gutenberg
 Requires PHP: 7.4
 Stable tag: 0.5.3
 License: GPLv2 or later
@@ -35,7 +36,7 @@ Pair with the WordPress MCP Adapter (separate plugin) for desktop/API agent acce
 
 == Installation ==
 
-1. Install on WordPress 6.9+.
+1. Install on WordPress 7.0+ and activate the Gutenberg plugin.
 2. Activate Changesets.
 3. (Optional) Install MCP Adapter for agent transport.
 4. Use a propose-only Application Password user without `publish_posts` / `edit_published_posts`.
@@ -44,9 +45,9 @@ Pair with the WordPress MCP Adapter (separate plugin) for desktop/API agent acce
 
 **Setup requirements** (check FIRST, before credentials):
 
-1. **Required plugins**: Changesets + WordPress MCP Adapter must be installed and active
+1. **Required plugins for MCP**: Gutenberg, Changesets, and WordPress MCP Adapter must be installed and active
 2. **How to verify**: Try calling `changesets/*` abilities via MCP. If not available, the plugins are missing.
-3. **If missing**: Explain both plugins are required for staging workflow. Ask permission to install them (or guide human to install). Then install if allowed.
+3. **If missing**: Explain which plugins are required for the MCP workflow. Ask permission to install them (or guide the human to install them). Then install if allowed.
 4. **Only after plugins are active**: Request Application Password / MCP connection if not already connected.
 
 **Critical**: Site URL alone does not give you MCP access. You need the MCP Adapter plugin installed and an authenticated connection to call `changesets/*` abilities.
@@ -65,10 +66,10 @@ Pair with the WordPress MCP Adapter (separate plugin) for desktop/API agent acce
 
 **Preview notes**: The preview query parameter is `changeset` (cookie name is the same). Exit preview via "Exit Changeset" admin bar link or `?exit_changeset=1`.
 
-**UI note**: Changesets uses abilities for approval and publishing — there are no "Approve" or "Publish" buttons in the WordPress admin for agents to click.
+**UI note**: Review changesets under Tools → Changesets. Authorized users can approve and publish there. Agents can use the corresponding abilities.
 
 **Agent brief** (paste-ready):
-You have access to a WordPress site. Before staging changes, verify Changesets and WordPress MCP Adapter are installed and active. If missing, ask permission to install them. Once active and connected: (1) create a changeset, (2) stage all changes using changesets/save (type: content/styles/setting), (3) give the human the preview URL and wait for approval, (4) after approval call changesets/approve then changesets/publish. Never edit live content directly.
+You have access to a WordPress 7.0+ site. Before staging changes, verify Gutenberg, Changesets, and WordPress MCP Adapter are installed and active. If missing, ask permission to install them. Once active and connected: (1) create a changeset, (2) stage all changes using changesets/save (type: content/styles/setting), (3) give the human the preview URL and wait for approval, (4) after approval call changesets/approve then changesets/publish. Never edit live content directly.
 
 == Changelog ==
 

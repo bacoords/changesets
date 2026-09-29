@@ -21,10 +21,6 @@ function cs_user_can_manage_changesets() {
  * Register ability category.
  */
 function cs_register_ability_category() {
-	if ( ! function_exists( 'wp_register_ability_category' ) ) {
-		return;
-	}
-
 	wp_register_ability_category(
 		'changesets',
 		array(
@@ -39,10 +35,6 @@ add_action( 'wp_abilities_api_categories_init', 'cs_register_ability_category' )
  * Register Abilities.
  */
 function cs_register_abilities() {
-	if ( ! function_exists( 'wp_register_ability' ) ) {
-		return;
-	}
-
 	wp_register_ability(
 		'changesets/create',
 		array(
