@@ -12,6 +12,11 @@
 .cs-workspace__back { display: inline-block; margin-bottom: var(--wpds-dimension-gap-xl); text-decoration: none; }
 .cs-workspace__review-layout { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: var(--wpds-dimension-gap-xl); }
 .cs-workspace__panel h3 { margin: var(--wpds-dimension-gap-xl) 0 var(--wpds-dimension-gap-sm); }
+.cs-workspace__theme-json { min-width: 0; }
+.cs-workspace__theme-json-source { margin-top: var(--wpds-dimension-gap-xl); }
+.cs-workspace__theme-json-source pre { max-height: 28rem; margin: 0; overflow: auto; font-size: 12px; }
+.cs-workspace__palette-value { display: inline-flex; align-items: center; gap: var(--wpds-dimension-gap-sm); }
+.cs-workspace__palette-swatches { display: inline-flex; align-items: center; gap: var(--wpds-dimension-gap-xs); }
 .cs-workspace__actions { display: flex; flex-direction: column; align-items: flex-start; gap: var(--wpds-dimension-gap-md); }
 .cs-workspace__actions .components-button { width: 100%; justify-content: center; }
 @media (max-width: 850px) { .cs-workspace__review-layout { grid-template-columns: 1fr; } }
