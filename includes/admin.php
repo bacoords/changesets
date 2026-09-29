@@ -1,7 +1,7 @@
 <?php
 /**
- * Preview controls in the WordPress admin bar for logged-in users and a
- * standalone preview bar for logged-out visitors.
+ * Preview controls in the WordPress admin bar when available and a
+ * standalone preview bar for visitors without the admin bar.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -25,10 +25,10 @@ function cs_changeset_badge_html( $title ) {
 }
 
 /**
- * Render the standalone Changeset bar for logged-out previews.
+ * Render the standalone Changeset bar when there is no native admin bar.
  */
 function cs_render_changeset_bar() {
-	if ( is_user_logged_in() ) {
+	if ( is_admin_bar_showing() ) {
 		return;
 	}
 
@@ -38,7 +38,7 @@ function cs_render_changeset_bar() {
 	}
 
 	$changeset = cs_get_changeset( $uuid );
-	if ( ! $changeset ) {
+	if ( ! $changeset || ! cs_user_can_preview_changeset( $changeset->ID ) ) {
 		return;
 	}
 
@@ -114,13 +114,13 @@ function cs_render_changeset_bar_footer_fallback() {
  * @param WP_Admin_Bar $admin_bar Admin bar instance.
  */
 function cs_add_admin_bar_menu( $admin_bar ) {
-	if ( ! is_user_logged_in() || ! current_user_can( 'manage_changesets' ) ) {
+	if ( ! is_user_logged_in() ) {
 		return;
 	}
 
 	$uuid      = cs_get_active_preview_uuid();
 	$changeset = $uuid ? cs_get_changeset( $uuid ) : null;
-	if ( ! $changeset ) {
+	if ( ! $changeset || ! cs_user_can_preview_changeset( $changeset->ID ) ) {
 		return;
 	}
 
@@ -239,8 +239,17 @@ function cs_changeset_panel_data( $changeset ) {
 	}
 
 	return array(
+		'changesetId' => (int) $changeset->ID,
 		'title'       => get_the_title( $changeset ),
 		'status'      => cs_get_changeset_status( $changeset->ID ),
+		'visibility'  => cs_get_changeset_visibility( $changeset->ID ),
+		'effectiveVisibility' => cs_get_effective_changeset_visibility( $changeset->ID ),
+		'approval'    => 'open' === cs_get_changeset_status( $changeset->ID ) && cs_user_can_approve_changeset( $changeset->ID )
+			? array(
+				'url'   => admin_url( 'admin-ajax.php' ),
+				'nonce' => wp_create_nonce( 'cs_approve_changeset_' . $changeset->ID ),
+			)
+			: null,
 		'content'     => $content,
 		'styles'      => $styles,
 		'settings'    => $settings,
@@ -252,6 +261,14 @@ function cs_changeset_panel_data( $changeset ) {
 			'update'        => __( 'Updated', 'changesets' ),
 			'empty'         => __( 'No changes staged yet.', 'changesets' ),
 			'status'        => __( 'Status', 'changesets' ),
+			'visibility'    => __( 'Visibility', 'changesets' ),
+			'visibilityPublic' => __( 'Anyone with link', 'changesets' ),
+			'visibilityLoggedIn' => __( 'Signed-in users', 'changesets' ),
+			'visibilityCapability' => __( 'Changeset managers', 'changesets' ),
+			'visibilityOverride' => __( 'site-wide restriction', 'changesets' ),
+			'approve'       => __( 'Approve changeset', 'changesets' ),
+			'approving'     => __( 'Approving…', 'changesets' ),
+			'approveError'  => __( 'Could not approve this changeset. Please try again.', 'changesets' ),
 			'open'          => __( 'Open', 'changesets' ),
 			'approved'      => __( 'Approved', 'changesets' ),
 			'view'          => __( 'View in preview', 'changesets' ),
@@ -263,16 +280,29 @@ function cs_changeset_panel_data( $changeset ) {
 }
 
 /**
+ * Approve from the authenticated review drawer. No public AJAX action exists.
+ */
+function cs_ajax_approve_changeset() {
+	$changeset_id = isset( $_POST['changeset_id'] ) ? absint( wp_unslash( $_POST['changeset_id'] ) ) : 0;
+	check_ajax_referer( 'cs_approve_changeset_' . $changeset_id, 'nonce' );
+	if ( ! $changeset_id || ! cs_user_can_approve_changeset( $changeset_id ) ) {
+		wp_send_json_error( array( 'message' => __( 'You cannot approve this changeset.', 'changesets' ) ), 403 );
+	}
+	$result = cs_approve_changeset( $changeset_id );
+	if ( is_wp_error( $result ) ) {
+		wp_send_json_error( array( 'message' => $result->get_error_message() ), 400 );
+	}
+	wp_send_json_success( array( 'status' => cs_get_changeset_status( $changeset_id ) ) );
+}
+add_action( 'wp_ajax_cs_approve_changeset', 'cs_ajax_approve_changeset' );
+
+/**
  * Load the official WPDS tokens and shared preview controls when needed.
  */
 function cs_enqueue_preview_controls() {
-	if ( is_user_logged_in() && ( ! current_user_can( 'manage_changesets' ) || ! is_admin_bar_showing() ) ) {
-		return;
-	}
-
 	$uuid = cs_get_active_preview_uuid();
 	$changeset = $uuid ? cs_get_changeset( $uuid ) : null;
-	if ( ! $changeset ) {
+	if ( ! $changeset || ! cs_user_can_preview_changeset( $changeset->ID ) ) {
 		return;
 	}
 
@@ -296,7 +326,9 @@ add_action( 'admin_enqueue_scripts', 'cs_enqueue_preview_controls' );
  * @return array
  */
 function cs_previewing_admin_body_class( $classes ) {
-	if ( ! is_user_logged_in() && cs_get_active_preview_uuid() && cs_get_changeset( cs_get_active_preview_uuid() ) ) {
+	$uuid      = cs_get_active_preview_uuid();
+	$changeset = $uuid ? cs_get_changeset( $uuid ) : null;
+	if ( ! is_admin_bar_showing() && $changeset && cs_user_can_preview_changeset( $changeset->ID ) ) {
 		$classes[] = 'dcp-previewing';
 	}
 	return $classes;

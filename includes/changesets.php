@@ -76,10 +76,16 @@ function cs_get_open_changeset( $title = null ) {
 /**
  * Create a new changeset.
  *
- * @param string|null $title Optional title.
+ * @param string|null $title      Optional title.
+ * @param string|null $visibility Preview audience. Defaults to the site's configured value.
  * @return int|WP_Error Changeset ID.
  */
-function cs_create_changeset( $title = null ) {
+function cs_create_changeset( $title = null, $visibility = null ) {
+	$visibility = null === $visibility ? cs_get_default_changeset_visibility() : $visibility;
+	if ( ! cs_is_valid_changeset_visibility( $visibility ) ) {
+		return new WP_Error( 'cs_invalid_visibility', __( 'Invalid changeset visibility.', 'changesets' ) );
+	}
+
 	if ( ! $title ) {
 		$title = sprintf(
 			/* translators: %s: date */
@@ -104,6 +110,7 @@ function cs_create_changeset( $title = null ) {
 	$uuid = wp_generate_uuid4();
 	update_post_meta( $changeset_id, '_changeset_uuid', $uuid );
 	update_post_meta( $changeset_id, '_changeset_status', 'open' );
+	update_post_meta( $changeset_id, '_changeset_visibility', $visibility );
 
 	return $changeset_id;
 }
@@ -178,6 +185,97 @@ function cs_get_changeset( $changeset_id_or_uuid ) {
  */
 function cs_get_changeset_uuid( $changeset_id ) {
 	return get_post_meta( (int) $changeset_id, '_changeset_uuid', true );
+}
+
+/**
+ * Whether a preview audience is supported.
+ *
+ * @param string $visibility Preview audience.
+ * @return bool
+ */
+function cs_is_valid_changeset_visibility( $visibility ) {
+	return in_array( $visibility, array( 'public', 'logged_in', 'capability' ), true );
+}
+
+/**
+ * Default audience for new changesets. Legacy changesets remain public links.
+ *
+ * @return string
+ */
+function cs_get_default_changeset_visibility() {
+	if ( ! defined( 'CHANGESETS_DEFAULT_VISIBILITY' ) ) {
+		return 'public';
+	}
+	return cs_is_valid_changeset_visibility( CHANGESETS_DEFAULT_VISIBILITY ) ? CHANGESETS_DEFAULT_VISIBILITY : 'capability';
+}
+
+/**
+ * Stored preview audience for a changeset.
+ *
+ * @param int $changeset_id Changeset ID.
+ * @return string
+ */
+function cs_get_changeset_visibility( $changeset_id ) {
+	$visibility = get_post_meta( (int) $changeset_id, '_changeset_visibility', true );
+	if ( '' === $visibility ) {
+		return 'public';
+	}
+	return cs_is_valid_changeset_visibility( $visibility ) ? $visibility : 'capability';
+}
+
+/**
+ * Site-wide private mode always overrides a changeset's audience.
+ *
+ * @param int $changeset_id Changeset ID.
+ * @return string
+ */
+function cs_get_effective_changeset_visibility( $changeset_id ) {
+	if ( defined( 'CHANGESETS_PRIVATE_PREVIEWS' ) && CHANGESETS_PRIVATE_PREVIEWS ) {
+		return 'capability';
+	}
+	return cs_get_changeset_visibility( $changeset_id );
+}
+
+/**
+ * Whether the current visitor may preview this changeset.
+ *
+ * @param int $changeset_id Changeset ID.
+ * @return bool
+ */
+function cs_user_can_preview_changeset( $changeset_id ) {
+	$visibility = cs_get_effective_changeset_visibility( $changeset_id );
+	if ( 'public' === $visibility ) {
+		return true;
+	}
+	if ( 'logged_in' === $visibility ) {
+		return is_user_logged_in();
+	}
+	return current_user_can( 'manage_changesets' );
+}
+
+/**
+ * Set a changeset's preview audience without changing its staged edits.
+ *
+ * @param int    $changeset_id Changeset ID.
+ * @param string $visibility   Preview audience.
+ * @return true|WP_Error
+ */
+function cs_set_changeset_visibility( $changeset_id, $visibility ) {
+	$changeset = cs_get_changeset( $changeset_id );
+	if ( ! $changeset ) {
+		return new WP_Error( 'cs_not_changeset', __( 'Not a changeset.', 'changesets' ) );
+	}
+	if ( ! current_user_can( 'manage_changesets' ) ) {
+		return new WP_Error( 'cs_forbidden', __( 'You cannot change this changeset\'s visibility.', 'changesets' ) );
+	}
+	if ( ! cs_is_valid_changeset_visibility( $visibility ) ) {
+		return new WP_Error( 'cs_invalid_visibility', __( 'Invalid changeset visibility.', 'changesets' ) );
+	}
+	if ( ! in_array( cs_get_changeset_status( $changeset_id ), array( 'open', 'approved' ), true ) ) {
+		return new WP_Error( 'cs_closed', __( 'Only open or approved changesets can change visibility.', 'changesets' ) );
+	}
+	update_post_meta( $changeset_id, '_changeset_visibility', $visibility );
+	return true;
 }
 
 /**
@@ -1313,20 +1411,19 @@ function cs_init_preview() {
 		return;
 	}
 
-	// Private preview mode: require logged-in user with manage_changesets capability.
-	if ( defined( 'CHANGESETS_PRIVATE_PREVIEWS' ) && CHANGESETS_PRIVATE_PREVIEWS ) {
+	// Per-changeset visibility is enforced here before any staged data is loaded.
+	// Site-wide private mode takes precedence over a public changeset link.
+	if ( ! cs_user_can_preview_changeset( $changeset->ID ) ) {
 		if ( ! is_user_logged_in() ) {
 			cs_clear_preview_cookie();
 			auth_redirect();
 		}
-		if ( ! current_user_can( 'manage_changesets' ) ) {
-			cs_clear_preview_cookie();
-			wp_die(
-				esc_html__( 'You do not have permission to preview changesets.', 'changesets' ),
-				esc_html__( 'Insufficient Permissions', 'changesets' ),
-				array( 'response' => 403 )
-			);
-		}
+		cs_clear_preview_cookie();
+		wp_die(
+			esc_html__( 'You do not have permission to preview this changeset.', 'changesets' ),
+			esc_html__( 'Insufficient Permissions', 'changesets' ),
+			array( 'response' => 403 )
+		);
 	}
 
 	if ( isset( $_GET['changeset'] ) ) {
@@ -1859,6 +1956,8 @@ function cs_get_status() {
 	$status = array(
 		'version'              => CS_VERSION,
 		'abilities_registered' => null !== wp_get_ability( 'changesets/create' ),
+		'default_visibility'   => cs_get_default_changeset_visibility(),
+		'private_preview_override' => defined( 'CHANGESETS_PRIVATE_PREVIEWS' ) && CHANGESETS_PRIVATE_PREVIEWS,
 		'user_caps'            => array(
 			'manage_changesets'  => current_user_can( 'manage_changesets' ),
 			'approve_changesets' => current_user_can( 'approve_changesets' ),
@@ -1910,7 +2009,7 @@ add_action( 'before_delete_post', 'cs_delete_changeset_staged', 10, 2 );
  * @return bool
  */
 function cs_user_can_approve_changeset( $changeset_id ) {
-	return current_user_can( 'approve_changesets' ) || current_user_can( 'publish_posts' ) || current_user_can( 'publish_pages' );
+	return current_user_can( 'approve_changesets' );
 }
 
 /**
@@ -1920,5 +2019,5 @@ function cs_user_can_approve_changeset( $changeset_id ) {
  * @return bool
  */
 function cs_user_can_publish_changeset( $changeset_id ) {
-	return current_user_can( 'publish_changesets' ) || current_user_can( 'publish_posts' ) || current_user_can( 'publish_pages' );
+	return current_user_can( 'publish_changesets' );
 }

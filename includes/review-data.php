@@ -26,6 +26,8 @@ function cs_review_serialize_changeset( $changeset, $include_changes = false ) {
 		'id'          => $id,
 		'title'       => get_the_title( $changeset ),
 		'status'      => $status,
+		'visibility'  => cs_get_changeset_visibility( $id ),
+		'effective_visibility' => cs_get_effective_changeset_visibility( $id ),
 		'modified'    => $modified,
 		'preview_url' => 'published' === $status ? '' : cs_get_preview_url( $id ),
 		'exit_preview_url' => add_query_arg( 'cs_exit_preview', '1', home_url( '/' ) ),

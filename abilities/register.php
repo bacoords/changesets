@@ -48,6 +48,11 @@ function cs_register_abilities() {
 						'type'        => 'string',
 						'description' => 'Human-readable title for this changeset (e.g. "Add Contact", "Home copy pass").',
 					),
+					'visibility' => array(
+						'type'        => 'string',
+						'enum'        => array( 'public', 'logged_in', 'capability' ),
+						'description' => 'Preview audience. Defaults to the site setting: public link, any logged-in user, or users with manage_changesets. Site-wide private preview mode always overrides this value.',
+					),
 				),
 				'additionalProperties' => false,
 			),
@@ -58,6 +63,8 @@ function cs_register_abilities() {
 					'uuid'         => array( 'type' => 'string' ),
 					'preview_url'  => array( 'type' => 'string' ),
 					'status'       => array( 'type' => 'string' ),
+					'visibility'   => array( 'type' => 'string' ),
+					'effective_visibility' => array( 'type' => 'string' ),
 				),
 			),
 			'execute_callback'    => 'cs_ability_create_changeset',
@@ -100,6 +107,8 @@ function cs_register_abilities() {
 					'uuid'         => array( 'type' => 'string' ),
 					'title'        => array( 'type' => 'string' ),
 					'status'       => array( 'type' => 'string' ),
+					'visibility'   => array( 'type' => 'string' ),
+					'effective_visibility' => array( 'type' => 'string' ),
 					'modified'     => array( 'type' => 'string' ),
 					'preview_url'  => array( 'type' => 'string' ),
 					'exit_preview_url' => array( 'type' => 'string' ),
@@ -202,6 +211,8 @@ function cs_register_abilities() {
 									'uuid'           => array( 'type' => 'string' ),
 									'title'          => array( 'type' => 'string' ),
 									'status'         => array( 'type' => 'string' ),
+									'visibility'     => array( 'type' => 'string' ),
+									'effective_visibility' => array( 'type' => 'string' ),
 									'modified'       => array( 'type' => 'string' ),
 									'preview_url'    => array( 'type' => 'string' ),
 									'exit_preview_url' => array( 'type' => 'string' ),
@@ -226,6 +237,49 @@ function cs_register_abilities() {
 				'annotations'  => array(
 					'readonly'    => true,
 					'destructive' => false,
+				),
+			),
+		)
+	);
+
+	wp_register_ability(
+		'changesets/set-visibility',
+		array(
+			'label'               => __( 'Set changeset visibility', 'changesets' ),
+			'description'         => __( 'Set who can open one changeset preview: anyone with its link, any logged-in user, or users with manage_changesets. Requires manage_changesets. Site-wide private previews still take precedence.', 'changesets' ),
+			'category'            => 'changesets',
+			'input_schema'        => array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'changeset_id' => array(
+						'type'    => 'integer',
+						'minimum' => 1,
+					),
+					'visibility' => array(
+						'type' => 'string',
+						'enum' => array( 'public', 'logged_in', 'capability' ),
+					),
+				),
+				'required'             => array( 'changeset_id', 'visibility' ),
+				'additionalProperties' => false,
+			),
+			'output_schema'       => array(
+				'type'       => 'object',
+				'properties' => array(
+					'changeset_id'         => array( 'type' => 'integer' ),
+					'visibility'           => array( 'type' => 'string' ),
+					'effective_visibility' => array( 'type' => 'string' ),
+				),
+			),
+			'execute_callback'    => 'cs_ability_set_changeset_visibility',
+			'permission_callback' => 'cs_ability_can_set_changeset_visibility',
+			'meta'                => array(
+				'show_in_rest' => true,
+				'public'       => true,
+				'annotations'  => array(
+					'readonly'    => false,
+					'destructive' => false,
+					'idempotent'  => true,
 				),
 			),
 		)
@@ -481,6 +535,8 @@ function cs_register_abilities() {
 				'properties' => array(
 					'version'              => array( 'type' => 'string' ),
 					'abilities_registered' => array( 'type' => 'boolean' ),
+					'default_visibility'   => array( 'type' => 'string' ),
+					'private_preview_override' => array( 'type' => 'boolean' ),
 					'user_caps'            => array( 'type' => 'object' ),
 					'open_changeset_count' => array( 'type' => 'integer' ),
 				),
@@ -511,7 +567,8 @@ function cs_ability_can_create_changeset( $input ) {
 
 function cs_ability_create_changeset( $input ) {
 	$title = isset( $input['title'] ) ? $input['title'] : null;
-	$changeset_id = cs_create_changeset( $title );
+	$visibility = isset( $input['visibility'] ) ? $input['visibility'] : null;
+	$changeset_id = cs_create_changeset( $title, $visibility );
 	if ( is_wp_error( $changeset_id ) ) {
 		return $changeset_id;
 	}
@@ -521,6 +578,8 @@ function cs_ability_create_changeset( $input ) {
 		'uuid'         => cs_get_changeset_uuid( $changeset_id ),
 		'preview_url'  => cs_get_preview_url( $changeset_id ),
 		'status'       => cs_get_changeset_status( $changeset_id ),
+		'visibility'   => cs_get_changeset_visibility( $changeset_id ),
+		'effective_visibility' => cs_get_effective_changeset_visibility( $changeset_id ),
 	);
 }
 
@@ -577,6 +636,24 @@ function cs_ability_can_list_changesets( $input ) {
 function cs_ability_list_changesets( $input ) {
 	$input = is_array( $input ) ? $input : array();
 	return cs_list_changesets( $input );
+}
+
+function cs_ability_can_set_changeset_visibility( $input ) {
+	return current_user_can( 'manage_changesets' );
+}
+
+function cs_ability_set_changeset_visibility( $input ) {
+	$changeset_id = (int) $input['changeset_id'];
+	$result       = cs_set_changeset_visibility( $changeset_id, $input['visibility'] );
+	if ( is_wp_error( $result ) ) {
+		return $result;
+	}
+
+	return array(
+		'changeset_id'         => $changeset_id,
+		'visibility'           => cs_get_changeset_visibility( $changeset_id ),
+		'effective_visibility' => cs_get_effective_changeset_visibility( $changeset_id ),
+	);
 }
 
 function cs_ability_can_save( $input ) {
