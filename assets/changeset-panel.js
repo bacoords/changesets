@@ -15,6 +15,8 @@
 		var useEffect = wp.element.useEffect;
 		var Button = wp.components.Button;
 		var Modal = wp.components.Modal;
+		var Panel = wp.components.Panel;
+		var PanelBody = wp.components.PanelBody;
 		var mount = document.createElement( 'div' );
 		mount.id = 'cs-changeset-panel-root';
 		document.body.appendChild( mount );
@@ -22,19 +24,26 @@
 		trigger.setAttribute( 'aria-haspopup', 'dialog' );
 		trigger.setAttribute( 'aria-expanded', 'false' );
 
-		function section( title, items, renderItem ) {
+		function section( title, items, renderItem, initialOpen, className ) {
 			if ( ! items.length ) {
 				return null;
 			}
 			return el(
-				'section',
-				{ className: 'cs-panel-section', key: title },
-				el(
-					'h2',
-					{ className: 'cs-panel-section__title' },
-					title,
-					el( 'span', { className: 'cs-panel-count' }, String( items.length ) )
-				),
+				PanelBody,
+				{
+					className: className
+						? 'cs-panel-section ' + className
+						: 'cs-panel-section',
+					key: title,
+					initialOpen: initialOpen,
+					scrollAfterOpen: false,
+					title: el(
+						'span',
+						{ className: 'cs-panel-section__title' },
+						title,
+						el( 'span', { className: 'cs-panel-count' }, String( items.length ) )
+					),
+				},
 				el(
 					'ul',
 					{ className: 'cs-panel-list' },
@@ -154,11 +163,19 @@
 					)
 				),
 				changeCount
-					? [
-							section( data.labels.content, data.content, contentItem ),
-							section( data.labels.styles, data.styles, styleItem ),
-							section( data.labels.settings, data.settings, settingItem ),
-					  ]
+					? el(
+							Panel,
+							{ className: 'cs-panel-group' },
+							section( data.labels.content, data.content, contentItem, true ),
+							section( data.labels.settings, data.settings, settingItem, true ),
+							section(
+								data.labels.styles,
+								data.styles,
+								styleItem,
+								false,
+								'cs-panel-section--styles'
+							)
+					  )
 					: el( 'p', { className: 'cs-panel-empty' }, data.labels.empty ),
 				el(
 					'div',
