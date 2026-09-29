@@ -165,7 +165,7 @@ function cs_render_changeset_bar_footer_fallback() {
 }
 
 /**
- * Link the active changeset to its review screen in the native admin bar.
+ * Link the active changeset to its preview in the native admin bar.
  *
  * @param WP_Admin_Bar $admin_bar Admin bar instance.
  */
@@ -191,7 +191,7 @@ function cs_add_admin_bar_menu( $admin_bar ) {
 		array(
 			'id'    => 'changesets',
 			'title' => '<span class="cs-admin-bar-badge">' . $icon . '<span class="cs-admin-bar-badge__label">' . esc_html( $label ) . '</span></span>',
-			'href'  => cs_review_url( $changeset->ID ),
+			'href'  => cs_get_preview_url( $changeset->ID ),
 			'meta'  => array(
 				'class' => 'cs-active-changeset',
 				'title' => $label,
@@ -215,8 +215,7 @@ function cs_enqueue_admin_bar_badge() {
 		return;
 	}
 
-	wp_enqueue_style( 'cs-design-tokens', CS_URL . 'build/vendor/design-tokens.css', array(), CS_VERSION );
-	wp_enqueue_style( 'cs-admin-bar', CS_URL . 'assets/admin-bar.css', array( 'cs-design-tokens' ), CS_VERSION );
+	wp_enqueue_style( 'cs-admin-bar', CS_URL . 'assets/admin-bar.css', array(), CS_VERSION );
 }
 add_action( 'wp_enqueue_scripts', 'cs_enqueue_admin_bar_badge' );
 add_action( 'admin_enqueue_scripts', 'cs_enqueue_admin_bar_badge' );

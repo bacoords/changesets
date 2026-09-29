@@ -27,7 +27,7 @@ Accumulate site edits in a staging Changeset, preview them on the live site with
 3. **Preview**: Give the human the `?changeset=<uuid>` URL and **wait for approval**
 4. **Publish**: After approval, call `changesets/approve`, then `changesets/publish`
 
-Use `changesets/list` with `status: "all"` for the full dashboard list. Use `changesets/get` for the staged content and settings, theme.json changes, preview and review links, and action availability shown on the review screen.
+Use `changesets/list` with `status: "all"` to inspect all changesets, including published ones. Use `changesets/get` for staged content, settings, theme.json changes, preview links, and available actions.
 
 **What stages**: Content (pages, posts, templates, template parts, navigation, custom post types), global styles, style variations, and settings (site title, homepage, site logo, site icon, featured images).
 
@@ -46,7 +46,7 @@ See [readme.txt](readme.txt) for complete documentation.
 3. Create an Application Password (propose-only user without publish permissions recommended)
 4. Connect your MCP client to the site using the Application Password
 
-The Changesets admin workspace is under **Tools → Changesets**. It uses Gutenberg's `@wordpress/build` pages and routes.
+Changesets has no wp-admin screen. Create, inspect, approve, and publish changesets through its abilities. During an active preview, the native admin bar shows the changeset badge for logged-in users; it links to the preview homepage. Logged-out previews retain the standalone preview bar.
 
 **Private preview mode** (optional): Require logged-in users with `manage_changesets` capability to preview changesets. Add to `wp-config.php`:
 
