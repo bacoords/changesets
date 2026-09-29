@@ -15,7 +15,8 @@
 		var Button = wp.components.Button;
 		var Dropdown = wp.components.Dropdown;
 		var Notice = wp.components.Notice;
-		var RadioControl = wp.components.RadioControl;
+		var ToggleGroupControl = wp.components.__experimentalToggleGroupControl;
+		var ToggleGroupControlOption = wp.components.__experimentalToggleGroupControlOption;
 		var mount = document.createElement( 'div' );
 		mount.id = 'cs-changeset-share-root';
 		var isAdminBar = !! trigger.closest( '#wp-admin-bar-changesets-share' );
@@ -133,10 +134,12 @@
 				} );
 			}
 
-			function saveVisibility() {
-				if ( ! data.sharing || isSaving || visibility === draftVisibility ) {
+			function saveVisibility( nextVisibility ) {
+				if ( ! data.sharing || isSaving || visibility === nextVisibility ||
+					( nextVisibility !== 'public' && nextVisibility !== 'logged_in' ) ) {
 					return;
 				}
+				setDraftVisibility( nextVisibility );
 				setSaving( true );
 				setMessage( '' );
 				setErrorMessage( '' );
@@ -144,13 +147,15 @@
 					data.sharing.url,
 					'cs_set_changeset_visibility',
 					data.sharing.nonce,
-					{ visibility: draftVisibility },
+					{ visibility: nextVisibility },
 					data.labels.saveError
 				).then( function ( result ) {
 					setVisibility( result.visibility );
+					setDraftVisibility( result.visibility );
 					setEffectiveVisibility( result.effectiveVisibility );
 					setMessage( data.labels.saved );
 				} ).catch( function ( error ) {
+					setDraftVisibility( visibility );
 					setErrorMessage( error.message || data.labels.saveError );
 				} ).finally( function () {
 					setSaving( false );
@@ -189,11 +194,19 @@
 				: effectiveVisibility === 'capability'
 					? data.labels.visibilityManagerHint
 					: '';
+			function closeMenu() {
+				setOpen( false );
+				window.requestAnimationFrame( function () {
+					if ( anchor ) {
+						anchor.focus();
+					}
+				} );
+			}
 
 			return el( wp.components.SlotFillProvider, null, el( Dropdown, {
 				open: isOpen,
 				onToggle: setOpen,
-				onClose: function () { setOpen( false ); },
+				onClose: closeMenu,
 				renderToggle: function ( controls ) {
 					return el( Button, {
 						ref: setAnchor,
@@ -220,58 +233,63 @@
 					return el( 'div', { className: 'cs-share-content' },
 						el( 'div', { className: 'cs-share-heading' },
 							el( 'h3', null, data.labels.shareHeading ),
-							el( 'span', { className: 'cs-share-status' }, data.labels[ status ] || status )
+							el( Button, {
+								icon: el( 'svg', {
+									viewBox: '0 0 24 24', width: 16, height: 16,
+									fill: 'none', stroke: 'currentColor', strokeWidth: 2,
+									strokeLinecap: 'round', 'aria-hidden': 'true', focusable: 'false',
+								}, el( 'path', { d: 'M6 6l12 12M18 6L6 18' } ) ),
+								label: data.labels.close,
+								size: 'compact',
+								variant: 'tertiary',
+								onClick: closeMenu,
+							} )
 						),
 						el( 'p', { className: 'cs-share-title' }, data.title ),
-						el( Button, { variant: 'primary', size: 'compact', onClick: share }, data.labels.copyLink ),
 						data.sharing
 							? el( 'div', { className: 'cs-share-settings' },
-								el( RadioControl, {
+								el( ToggleGroupControl, {
 									label: data.labels.visibility,
-									selected: draftVisibility,
-									options: [
-										{ label: visibilityLabels.public, value: 'public' },
-										{ label: visibilityLabels.logged_in, value: 'logged_in' },
-										{ label: visibilityLabels.capability, value: 'capability' },
-									],
+									value: draftVisibility === 'capability' ? undefined : draftVisibility,
+									isBlock: true,
+									__nextHasNoMarginBottom: true,
 									disabled: isSaving,
-									onChange: setDraftVisibility,
-								} ),
-								el( Button, {
-									variant: 'secondary',
-									size: 'compact',
-									disabled: isSaving || draftVisibility === visibility,
-									accessibleWhenDisabled: true,
-									isBusy: isSaving,
-									onClick: saveVisibility,
-								}, isSaving ? data.labels.saving : data.labels.saveVisibility )
+									onChange: saveVisibility,
+								},
+									el( ToggleGroupControlOption, { label: data.labels.visibilityPublicShort, value: 'public' } ),
+									el( ToggleGroupControlOption, { label: data.labels.visibilityLoggedInShort, value: 'logged_in' } )
+								)
 							)
 							: el( 'p', { className: 'cs-share-audience' }, data.labels.visibility, ': ', visibilityLabels[ effectiveVisibility ] ),
 						visibility !== effectiveVisibility
 							? el( 'p', { className: 'cs-share-hint' }, data.labels.visibilityOverride )
+							: visibility === 'capability'
+								? el( 'p', { className: 'cs-share-hint' }, data.labels.visibilityManagerHint )
 							: audienceHint
 								? el( 'p', { className: 'cs-share-hint' }, audienceHint )
 								: null,
-						message ? el( Notice, { status: 'success', isDismissible: false }, message ) : null,
-						errorMessage ? el( Notice, { status: 'error', isDismissible: false },
-							errorMessage,
-							errorMessage === data.labels.copyError
-								? el( 'code', { className: 'cs-share-fallback-url' }, data.shareUrl )
-								: null
-						) : null,
-						( data.approval && status === 'open' ) || data.exitUrl
-							? el( 'div', { className: 'cs-share-actions' },
-								data.approval && status === 'open'
-									? el( Button, {
-										variant: 'secondary', size: 'compact', onClick: approve,
-										isBusy: isApproving, disabled: isApproving,
-									}, isApproving ? data.labels.approving : data.labels.approve )
-									: null,
-								data.exitUrl
-									? el( Button, { variant: 'tertiary', size: 'compact', href: data.exitUrl }, data.labels.exit )
+						isSaving ? el( 'p', { className: 'cs-share-hint' }, data.labels.saving ) : null,
+						message || errorMessage ? el( 'div', { className: 'cs-share-feedback' },
+							message ? el( Notice, { status: 'success', isDismissible: false }, message ) : null,
+							errorMessage ? el( Notice, { status: 'error', isDismissible: false },
+								errorMessage,
+								errorMessage === data.labels.copyError
+									? el( 'code', { className: 'cs-share-fallback-url' }, data.shareUrl )
 									: null
-							)
-							: null
+							) : null
+						) : null,
+						el( 'div', { className: 'cs-share-actions' },
+							data.approval && status === 'open'
+								? el( Button, {
+									variant: 'primary', size: 'compact', onClick: approve,
+									isBusy: isApproving, disabled: isApproving,
+								}, isApproving ? data.labels.approving : data.labels.approve )
+								: null,
+							data.exitUrl
+								? el( Button, { variant: 'tertiary', size: 'compact', href: data.exitUrl }, data.labels.exit )
+								: null,
+							el( Button, { variant: 'secondary', size: 'compact', onClick: share }, data.labels.copyLink )
+						)
 					);
 				},
 			} ), slotMount ? wp.element.createPortal( el( wp.components.Popover.Slot ), slotMount ) : null );

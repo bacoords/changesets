@@ -65,7 +65,7 @@ Pair with the WordPress MCP Adapter (separate plugin) for desktop/API agent acce
 
 **Never edit live content directly**. Always use the Changesets workflow. If the human explicitly asks you to repair something live outside of Changesets, only do so after confirming that's what they want.
 
-**Preview notes**: The preview query parameter is `changeset` (cookie name is the same). Logged-out visitors can use the standalone "Exit Changeset" bar; anyone can exit via `?cs_exit_preview=1`.
+**Preview notes**: The preview query parameter is `changeset` (cookie name is the same). Visitors can exit from the sharing popover; anyone can also exit via `?cs_exit_preview=1`.
 
 **Front-end only**: Preview URLs and cookies do not affect wp-admin, the Site Editor, REST, AJAX, or CLI requests. Normal editor saves still change the live site; use Changesets abilities to stage edits.
 
@@ -73,7 +73,7 @@ Pair with the WordPress MCP Adapter (separate plugin) for desktop/API agent acce
 
 **Approval**: Authenticated reviewers with `approve_changesets` can approve in the sharing popover or via `changesets/approve`. Public visitors never see the button and cannot use the action. Approval records approver and time and changes status to approved; it does not publish. `changesets/publish` separately requires `publish_changesets` and an approved changeset. Use a proposing agent account without approval or publishing capability.
 
-**UI note**: No Changesets screen is registered in wp-admin. During an active front-end preview, the badge opens a WPDS sharing popover. Visitors can copy the preview link; changeset managers can change access between anyone with the link, signed-in users, and changeset managers. Authorized reviewers can approve there. Logged-in visitors can exit from the popover; logged-out visitors have a separate Exit Changeset control in the preview bar. Use the abilities to inspect the full list of changes and to publish.
+**UI note**: No Changesets screen is registered in wp-admin. During an active front-end preview, the badge opens a WPDS sharing popover. Visitors can copy the preview link or exit. Changeset managers can switch between Public and Logged in in the popover; manager-only access remains available through MCP. Authorized reviewers can approve there. Use the abilities to inspect the full list of changes and to publish.
 
 **Agent brief** (paste-ready):
 You have access to a WordPress 7.0+ site. Before staging changes, verify Gutenberg, Changesets, and WordPress MCP Adapter are installed and active. If missing, ask permission to install them. Once active and connected: (1) create a changeset, (2) stage all changes using changesets/save (type: content/styles/setting), (3) give a human reviewer the preview URL, (4) let an authenticated reviewer approve in the preview sharing menu or with changesets/approve, (5) let an authorized publisher call changesets/publish. Never edit live content directly.
