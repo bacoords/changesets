@@ -68,7 +68,7 @@ function cs_render_changeset_bar() {
 				class="dcp-changeset-bar__trigger"
 				aria-haspopup="dialog"
 				aria-expanded="false"
-				aria-label="<?php echo esc_attr( sprintf( __( 'Review changeset: %s', 'changesets' ), $title ) ); ?>"
+				aria-label="<?php echo esc_attr( sprintf( __( 'Share changeset: %s', 'changesets' ), $title ) ); ?>"
 			>
 				<?php echo cs_changeset_badge_html( $title ); // Escaped in helper. ?>
 			</button>
@@ -135,12 +135,12 @@ function cs_add_admin_bar_menu( $admin_bar ) {
 
 	$admin_bar->add_node(
 		array(
-			'id'    => 'changesets-panel',
+			'id'    => 'changesets-share',
 			'title' => cs_changeset_badge_html( get_the_title( $changeset ) ),
 			'href'  => cs_get_preview_url( $changeset->ID ),
 			'meta'  => array(
-				'class' => 'cs-changesets-panel-trigger',
-				'title' => __( 'Review changeset', 'changesets' ),
+				'class' => 'cs-changesets-share-trigger',
+				'title' => __( 'Share changeset', 'changesets' ),
 			),
 		)
 	);
@@ -149,150 +149,67 @@ function cs_add_admin_bar_menu( $admin_bar ) {
 add_action( 'admin_bar_menu', 'cs_add_admin_bar_menu', 39 );
 
 /**
- * Build a preview URL for staged content when the post type has a permalink.
- *
- * @param WP_Post $staged       Staged draft.
- * @param int     $source_id    Published source ID, if any.
- * @param WP_Post $changeset    Active changeset.
- * @return string
- */
-function cs_changeset_panel_content_url( $staged, $source_id, $changeset ) {
-	$post_type = get_post_type_object( $staged->post_type );
-	if ( ! $post_type || ! is_post_type_viewable( $post_type ) ) {
-		return '';
-	}
-
-	$target_id = $source_id ? $source_id : $staged->ID;
-	$front_id  = (int) get_option( 'page_on_front' );
-	if ( 'page' === $staged->post_type && 'page' === get_option( 'show_on_front' ) && in_array( $front_id, array( (int) $target_id, (int) $staged->ID ), true ) ) {
-		$url = home_url( '/' );
-	} elseif ( ! $source_id && 'page' === $staged->post_type ) {
-		$url = home_url( user_trailingslashit( '/' . ltrim( get_page_uri( $staged->ID ), '/' ), 'page' ) );
-	} else {
-		$url = get_permalink( $target_id );
-	}
-
-	return $url ? add_query_arg( 'changeset', cs_get_changeset_uuid( $changeset->ID ), $url ) : '';
-}
-
-/**
- * Format the staged value of a site setting for the review panel.
- *
- * @param string $key   Option name.
- * @param mixed  $value Staged value.
- * @return string
- */
-function cs_changeset_panel_setting_value( $key, $value ) {
-	if ( in_array( $key, array( 'page_on_front', 'page_for_posts' ), true ) ) {
-		return $value ? get_the_title( (int) $value ) : __( 'None', 'changesets' );
-	}
-	if ( 'show_on_front' === $key ) {
-		return 'page' === $value ? __( 'A static page', 'changesets' ) : __( 'Latest posts', 'changesets' );
-	}
-	if ( is_bool( $value ) ) {
-		return $value ? __( 'Yes', 'changesets' ) : __( 'No', 'changesets' );
-	}
-	if ( is_scalar( $value ) ) {
-		return (string) $value;
-	}
-	return wp_json_encode( $value );
-}
-
-/**
- * Prepare the active changeset's complete review list for the WPDS panel.
+ * Prepare the active changeset's compact sharing controls.
  *
  * @param WP_Post $changeset Changeset.
  * @return array
  */
-function cs_changeset_panel_data( $changeset ) {
-	$review  = cs_review_serialize_changeset( $changeset, true );
-	$content = array();
-	foreach ( $review['content'] as $item ) {
-		$staged = get_post( $item['id'] );
-		if ( ! $staged ) {
-			continue;
-		}
-		$post_type = get_post_type_object( $staged->post_type );
-		$title     = get_the_title( $staged );
-		$content[] = array(
-			'title'  => $title ? $title : __( '(Untitled)', 'changesets' ),
-			'type'   => $post_type ? $post_type->labels->singular_name : $staged->post_type,
-			'change' => $item['change'],
-			'url'    => cs_changeset_panel_content_url( $staged, (int) $item['source_id'], $changeset ),
-		);
-	}
-
-	$settings       = array();
-	$setting_labels = array(
-		'show_on_front'   => __( 'Homepage display', 'changesets' ),
-		'page_on_front'   => __( 'Homepage page', 'changesets' ),
-		'page_for_posts'  => __( 'Posts page', 'changesets' ),
-		'blogname'        => __( 'Site title', 'changesets' ),
-		'blogdescription' => __( 'Tagline', 'changesets' ),
-	);
-	foreach ( cs_get_staged_options( $changeset->ID ) as $key => $item ) {
-		$value      = is_array( $item ) && array_key_exists( 'value', $item ) ? $item['value'] : $item;
-		$show_value = current_user_can( 'manage_changesets' ) || isset( $setting_labels[ $key ] );
-		$settings[] = array(
-			'label' => isset( $setting_labels[ $key ] ) ? $setting_labels[ $key ] : ucwords( str_replace( '_', ' ', $key ) ),
-			'value' => $show_value ? cs_changeset_panel_setting_value( $key, $value ) : '',
-		);
-	}
-
-	$styles = array();
-	foreach ( $review['theme_json_changes'] as $change ) {
-		$styles[] = $change['path'];
-	}
-	if ( empty( $styles ) && ! empty( $review['styles'] ) ) {
-		$styles[] = __( 'Global styles', 'changesets' );
-	}
+function cs_changeset_share_data( $changeset ) {
+	$id     = (int) $changeset->ID;
+	$status = cs_get_changeset_status( $id );
+	$can_manage_sharing = current_user_can( 'manage_changesets' ) && in_array( $status, array( 'open', 'approved' ), true );
 
 	return array(
-		'changesetId' => (int) $changeset->ID,
-		'title'       => get_the_title( $changeset ),
-		'status'      => cs_get_changeset_status( $changeset->ID ),
-		'visibility'  => cs_get_changeset_visibility( $changeset->ID ),
-		'effectiveVisibility' => cs_get_effective_changeset_visibility( $changeset->ID ),
-		'approval'    => 'open' === cs_get_changeset_status( $changeset->ID ) && cs_user_can_approve_changeset( $changeset->ID )
+		'changesetId'        => $id,
+		'title'              => get_the_title( $changeset ),
+		'status'             => $status,
+		'shareUrl'           => cs_get_preview_url( $id ),
+		'visibility'         => cs_get_changeset_visibility( $id ),
+		'effectiveVisibility' => cs_get_effective_changeset_visibility( $id ),
+		'sharing'            => $can_manage_sharing
 			? array(
 				'url'   => admin_url( 'admin-ajax.php' ),
-				'nonce' => wp_create_nonce( 'cs_approve_changeset_' . $changeset->ID ),
+				'nonce' => wp_create_nonce( 'cs_set_changeset_visibility_' . $id ),
 			)
 			: null,
-		'exitUrl'     => is_user_logged_in() ? cs_get_current_exit_preview_url() : '',
-		'content'     => $content,
-		'styles'      => $styles,
-		'settings'    => $settings,
-		'labels'      => array(
-			'content'       => __( 'Content', 'changesets' ),
-			'styles'        => __( 'Theme styles', 'changesets' ),
-			'settings'      => __( 'Site settings', 'changesets' ),
-			'new'           => __( 'New', 'changesets' ),
-			'update'        => __( 'Updated', 'changesets' ),
-			'empty'         => __( 'No changes staged yet.', 'changesets' ),
-			'status'        => __( 'Status', 'changesets' ),
-			'visibility'    => __( 'Visibility', 'changesets' ),
-			'visibilityPublic' => __( 'Anyone with link', 'changesets' ),
-			'visibilityLoggedIn' => __( 'Signed-in users', 'changesets' ),
+		'approval'           => 'open' === $status && cs_user_can_approve_changeset( $id )
+			? array(
+				'url'   => admin_url( 'admin-ajax.php' ),
+				'nonce' => wp_create_nonce( 'cs_approve_changeset_' . $id ),
+			)
+			: null,
+		'exitUrl'            => is_user_logged_in() ? cs_get_current_exit_preview_url() : '',
+		'labels'             => array(
+			'shareTrigger'         => __( 'Share changeset', 'changesets' ),
+			'shareHeading'         => __( 'Share this changeset', 'changesets' ),
+			'copyLink'             => __( 'Copy preview link', 'changesets' ),
+			'copied'               => __( 'Link copied', 'changesets' ),
+			'copyError'            => __( 'Could not copy the link. Copy it from the address bar instead.', 'changesets' ),
+			'visibility'           => __( 'Who can view this preview', 'changesets' ),
+			'visibilityPublic'     => __( 'Anyone with the link', 'changesets' ),
+			'visibilityLoggedIn'   => __( 'Signed-in users', 'changesets' ),
 			'visibilityCapability' => __( 'Changeset managers', 'changesets' ),
-			'visibilityOverride' => __( 'site-wide restriction', 'changesets' ),
-			'approve'       => __( 'Approve changeset', 'changesets' ),
-			'approving'     => __( 'Approving…', 'changesets' ),
-			'approveError'  => __( 'Could not approve this changeset. Please try again.', 'changesets' ),
-			'reviewChanges' => __( 'Changes in this changeset', 'changesets' ),
-			'exit'          => __( 'Exit Changeset', 'changesets' ),
-			'open'          => __( 'Open', 'changesets' ),
-			'approved'      => __( 'Approved', 'changesets' ),
-			'view'          => __( 'View in preview', 'changesets' ),
-			'close'         => __( 'Close changeset review', 'changesets' ),
-			'changeOne'     => __( 'change', 'changesets' ),
-			'changeMany'    => __( 'changes', 'changesets' ),
+			'visibilityOverride'   => __( 'Site-wide private previews restrict access to changeset managers.', 'changesets' ),
+			'visibilityLoginHint'  => __( 'People opening this link will need to sign in.', 'changesets' ),
+			'visibilityManagerHint' => __( 'Only changeset managers can open this link.', 'changesets' ),
+			'saveVisibility'       => __( 'Save sharing settings', 'changesets' ),
+			'saving'               => __( 'Saving…', 'changesets' ),
+			'saved'                => __( 'Sharing settings saved.', 'changesets' ),
+			'saveError'            => __( 'Could not save sharing settings. Please try again.', 'changesets' ),
+			'approve'              => __( 'Approve changeset', 'changesets' ),
+			'approving'            => __( 'Approving…', 'changesets' ),
+			'approveError'         => __( 'Could not approve this changeset. Please try again.', 'changesets' ),
+			'exit'                 => __( 'Exit Changeset', 'changesets' ),
+			'open'                 => __( 'Open', 'changesets' ),
+			'approved'             => __( 'Approved', 'changesets' ),
+			'published'            => __( 'Published', 'changesets' ),
+			'discarded'            => __( 'Discarded', 'changesets' ),
 		),
 	);
 }
 
 /**
- * Approve from the authenticated review drawer. No public AJAX action exists.
+ * Approve from the authenticated front-end sharing menu. No public AJAX action exists.
  */
 function cs_ajax_approve_changeset() {
 	$changeset_id = isset( $_POST['changeset_id'] ) ? absint( wp_unslash( $_POST['changeset_id'] ) ) : 0;
@@ -309,7 +226,31 @@ function cs_ajax_approve_changeset() {
 add_action( 'wp_ajax_cs_approve_changeset', 'cs_ajax_approve_changeset' );
 
 /**
- * Load the official WPDS tokens and shared preview controls when needed.
+ * Update sharing from the front-end menu. The nonce protects the request and
+ * the changeset service enforces the manager capability and status rules.
+ */
+function cs_ajax_set_changeset_visibility() {
+	$changeset_id = isset( $_POST['changeset_id'] ) ? absint( wp_unslash( $_POST['changeset_id'] ) ) : 0;
+	check_ajax_referer( 'cs_set_changeset_visibility_' . $changeset_id, 'nonce' );
+	if ( ! $changeset_id || ! current_user_can( 'manage_changesets' ) ) {
+		wp_send_json_error( array( 'message' => __( 'You cannot change this changeset\'s sharing settings.', 'changesets' ) ), 403 );
+	}
+	$visibility = isset( $_POST['visibility'] ) ? sanitize_key( wp_unslash( $_POST['visibility'] ) ) : '';
+	$result     = cs_set_changeset_visibility( $changeset_id, $visibility );
+	if ( is_wp_error( $result ) ) {
+		wp_send_json_error( array( 'message' => $result->get_error_message() ), 400 );
+	}
+	wp_send_json_success(
+		array(
+			'visibility'          => cs_get_changeset_visibility( $changeset_id ),
+			'effectiveVisibility' => cs_get_effective_changeset_visibility( $changeset_id ),
+		)
+	);
+}
+add_action( 'wp_ajax_cs_set_changeset_visibility', 'cs_ajax_set_changeset_visibility' );
+
+/**
+ * Load WPDS tokens and the front-end changeset sharing menu when needed.
  */
 function cs_enqueue_preview_controls() {
 	if ( ! cs_is_frontend_preview_context() ) {
@@ -322,13 +263,13 @@ function cs_enqueue_preview_controls() {
 	}
 
 	wp_enqueue_script(
-		'cs-changeset-panel',
-		CS_URL . 'assets/changeset-panel.js',
+		'cs-changeset-share',
+		CS_URL . 'assets/changeset-share.js',
 		array( 'wp-element', 'wp-components' ),
 		CS_VERSION,
 		true
 	);
-	wp_localize_script( 'cs-changeset-panel', 'csChangesetPanel', cs_changeset_panel_data( $changeset ) );
+	wp_localize_script( 'cs-changeset-share', 'csChangesetShare', cs_changeset_share_data( $changeset ) );
 	wp_enqueue_style( 'cs-preview-controls', CS_URL . 'assets/preview-controls.css', array( 'wp-theme', 'wp-components' ), CS_VERSION );
 }
 add_action( 'wp_enqueue_scripts', 'cs_enqueue_preview_controls' );
