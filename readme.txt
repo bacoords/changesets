@@ -58,15 +58,15 @@ Pair with the WordPress MCP Adapter (separate plugin) for desktop/API agent acce
    - `content` — page/post/template/template-part/navigation/CPT. Pass `source_id` to stage an existing entity for editing; omit `source_id` to create a new one. Include `title`, `content`, etc.
    - `styles` — global styles. Pass `variation` (style variation name) and/or `settings`/`styles` (theme.json patches).
    - `setting` — site option. Pass `key` (e.g. `blogname`, `show_on_front`, `page_on_front`) and `value`.
-3. **Inspect**: `changesets/list` with `status: "all"` returns the dashboard list, including published changesets, preview and review links, and change counts. `changesets/get` returns the staged content, settings, theme.json comparison, links, and available actions shown in the dashboard review, plus full staged payloads.
+3. **Inspect**: `changesets/list` with `status: "all"` returns published changesets too, with preview links and change counts. `changesets/get` returns staged content, settings, theme.json comparison, preview and exit links, available actions, and full staged payloads.
 4. **Preview**: Give the human the `?changeset=<uuid>` URL (or `preview_url` from create). **Wait for human approval.**
 5. **Publish**: After human approval, call `changesets/approve`, then `changesets/publish` to apply all changes to the live site.
 
 **Never edit live content directly**. Always use the Changesets workflow. If the human explicitly asks you to repair something live outside of Changesets, only do so after confirming that's what they want.
 
-**Preview notes**: The preview query parameter is `changeset` (cookie name is the same). Exit preview via "Exit Changeset" admin bar link or `?exit_changeset=1`.
+**Preview notes**: The preview query parameter is `changeset` (cookie name is the same). Logged-out visitors can use the standalone "Exit Changeset" bar; anyone can exit via `?cs_exit_preview=1`.
 
-**UI note**: Review changesets under Tools → Changesets. Authorized users can approve and publish there. Agents can use the corresponding abilities.
+**UI note**: No Changesets screen is registered in wp-admin. The native admin bar shows a badge for an active changeset preview and links to the preview homepage. Use the abilities to inspect, approve, and publish.
 
 **Agent brief** (paste-ready):
 You have access to a WordPress 7.0+ site. Before staging changes, verify Gutenberg, Changesets, and WordPress MCP Adapter are installed and active. If missing, ask permission to install them. Once active and connected: (1) create a changeset, (2) stage all changes using changesets/save (type: content/styles/setting), (3) give the human the preview URL and wait for approval, (4) after approval call changesets/approve then changesets/publish. Never edit live content directly.

@@ -54,6 +54,6 @@ On the Studio test site, `wp_template`, `wp_template_part`, `wp_navigation`, and
 2. Add a type-by-type test matrix for create, update, preview, inspect, approve, publish, and discard. Start with page, `wp_template`, `wp_template_part`, `wp_navigation`, and `wp_block`.
 3. Define a field map for each supported type, including registered meta and taxonomies, and verify that preview and publish apply the same fields.
 4. Decide how an *active editing changeset* differs from the current preview cookie. Existing front-end preview filters do not intercept ordinary wp-admin or REST saves. Map each admin write path before promising that all admin changes will be staged.
-5. Prototype the modern workspace with [`@wordpress/wp-build`](https://github.com/WordPress/gutenberg/blob/trunk/packages/wp-build/README.md) and [DataViews](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-dataviews/). Validate whether the experimental route inspector or canvas best fits the staged-change detail view. The admin review page in PR #3 is an interim publishing surface.
+5. Keep the review payloads available through MCP abilities. The wp-admin workspace experiment was removed; changesets are managed through abilities while the admin bar indicates an active preview.
 
 The goal is broad coverage for meaningful post types, including internal types. Explicit exceptions should have a reason and a visible fallback so users know when an admin action will change the live site.

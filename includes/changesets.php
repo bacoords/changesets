@@ -1153,7 +1153,7 @@ function cs_list_changesets( $args = array() ) {
 	$search = isset( $args['search'] ) ? trim( (string) $args['search'] ) : '';
 	$items  = array_values(
 		array_filter(
-			cs_workspace_list_changesets(),
+			cs_review_list_changesets(),
 			function ( $item ) use ( $status, $search ) {
 				$matches_status = 'all' === $status || ( '' === $status ? in_array( $item['status'], array( 'open', 'approved' ), true ) : $item['status'] === $status );
 				return $matches_status && ( '' === $search || false !== stripos( $item['title'], $search ) );

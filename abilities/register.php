@@ -39,7 +39,7 @@ function cs_register_abilities() {
 		'changesets/create',
 		array(
 			'label'               => __( 'Create changeset', 'changesets' ),
-			'description'         => __( 'Create a new changeset staging session for site edits. Returns changeset_id, uuid, preview_url, and review_url. All staged edits accumulate in this session until Publish Changeset.', 'changesets' ),
+			'description'         => __( 'Create a new changeset staging session for site edits. Returns changeset_id, uuid, and preview_url. All staged edits accumulate in this session until Publish Changeset.', 'changesets' ),
 			'category'            => 'changesets',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -57,7 +57,6 @@ function cs_register_abilities() {
 					'changeset_id' => array( 'type' => 'integer' ),
 					'uuid'         => array( 'type' => 'string' ),
 					'preview_url'  => array( 'type' => 'string' ),
-					'review_url'   => array( 'type' => 'string' ),
 					'status'       => array( 'type' => 'string' ),
 				),
 			),
@@ -79,7 +78,7 @@ function cs_register_abilities() {
 		'changesets/get',
 		array(
 			'label'               => __( 'Get changeset', 'changesets' ),
-			'description'         => __( 'Get the same list of staged content, settings, theme.json comparison, preview link, review link, and available actions shown in the Changesets dashboard. Also returns the original staged payloads for agents.', 'changesets' ),
+			'description'         => __( 'Get staged content, settings, theme.json comparison, preview and exit links, and available actions for one changeset. Also returns the original staged payloads for agents.', 'changesets' ),
 			'category'            => 'changesets',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -103,7 +102,6 @@ function cs_register_abilities() {
 					'status'       => array( 'type' => 'string' ),
 					'modified'     => array( 'type' => 'string' ),
 					'preview_url'  => array( 'type' => 'string' ),
-					'review_url'   => array( 'type' => 'string' ),
 					'exit_preview_url' => array( 'type' => 'string' ),
 					'content'      => array(
 						'type'  => 'array',
@@ -158,7 +156,7 @@ function cs_register_abilities() {
 		'changesets/list',
 		array(
 			'label'               => __( 'List changesets', 'changesets' ),
-			'description'         => __( 'List open or approved changesets by default. Use status "all" to include the published changesets shown in the dashboard. Returns preview and review links, modified dates, and staged change counts. Supports title search, sorting, and pagination.', 'changesets' ),
+			'description'         => __( 'List open or approved changesets by default. Use status "all" to include published changesets. Returns preview links, modified dates, and staged change counts. Supports title search, sorting, and pagination.', 'changesets' ),
 			'category'            => 'changesets',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -206,7 +204,6 @@ function cs_register_abilities() {
 									'status'         => array( 'type' => 'string' ),
 									'modified'       => array( 'type' => 'string' ),
 									'preview_url'    => array( 'type' => 'string' ),
-									'review_url'     => array( 'type' => 'string' ),
 									'exit_preview_url' => array( 'type' => 'string' ),
 									'staged_count'   => array( 'type' => 'integer' ),
 									'content_count'  => array( 'type' => 'integer' ),
@@ -523,7 +520,6 @@ function cs_ability_create_changeset( $input ) {
 		'changeset_id' => $changeset_id,
 		'uuid'         => cs_get_changeset_uuid( $changeset_id ),
 		'preview_url'  => cs_get_preview_url( $changeset_id ),
-		'review_url'   => cs_review_url( $changeset_id ),
 		'status'       => cs_get_changeset_status( $changeset_id ),
 	);
 }
@@ -539,7 +535,7 @@ function cs_ability_get_changeset( $input ) {
 		return new WP_Error( 'cs_not_changeset', __( 'Not a changeset.', 'changesets' ) );
 	}
 
-	$review     = cs_workspace_serialize_changeset( $changeset, true );
+	$review     = cs_review_serialize_changeset( $changeset, true );
 	$staged_ids = cs_get_staged_drafts( $changeset_id );
 	$staged_items = array();
 	foreach ( $staged_ids as $staged_id ) {
