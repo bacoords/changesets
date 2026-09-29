@@ -172,7 +172,8 @@ function cs_workspace_serialize_changeset( $changeset, $include_changes = false 
 	}
 
 	$data['settings']    = array_keys( cs_get_staged_options( $id ) );
-	$data['styles']      = (bool) ( cs_get_staged_global_styles( $id ) || cs_get_staged_style_variation( $id ) );
+	$data['theme_json']  = cs_workspace_get_theme_json( $id );
+	$data['styles']      = null !== $data['theme_json'];
 	$data['can_approve'] = 'open' === $status && cs_user_can_approve_changeset( $id );
 	$data['can_publish'] = 'approved' === $status && cs_user_can_publish_changeset( $id );
 	$data['exit_url']    = cs_get_active_preview_uuid() === cs_get_changeset_uuid( $id )
@@ -180,6 +181,47 @@ function cs_workspace_serialize_changeset( $changeset, $include_changes = false 
 		: '';
 
 	return $data;
+}
+
+/**
+ * Return the staged user-level theme.json data and current live overrides.
+ * Reading the published global styles post directly keeps preview filters out
+ * of the comparison when the reviewer is already previewing a changeset.
+ *
+ * @param int $changeset_id Changeset ID.
+ * @return array|null
+ */
+function cs_workspace_get_theme_json( $changeset_id ) {
+	$staged    = cs_get_staged_global_styles( $changeset_id );
+	$variation = cs_get_staged_style_variation( $changeset_id );
+	$error     = '';
+
+	if ( ! $staged && $variation ) {
+		$resolved = cs_resolve_style_variation( $variation );
+		if ( is_wp_error( $resolved ) ) {
+			$error = $resolved->get_error_message();
+		} else {
+			$staged = $resolved['data'];
+		}
+	}
+	if ( ! $staged && ! $variation ) {
+		return null;
+	}
+
+	$live_post = WP_Theme_JSON_Resolver::get_user_data_from_wp_global_styles( wp_get_theme() );
+	$current   = isset( $live_post['post_content'] ) ? json_decode( $live_post['post_content'], true ) : array();
+	$current   = is_array( $current ) ? $current : array();
+	$staged    = is_array( $staged ) ? $staged : array();
+	unset( $current['isGlobalStylesUserThemeJSON'], $staged['isGlobalStylesUserThemeJSON'] );
+
+	$title = get_post_meta( $changeset_id, '_changeset_staged_style_variation_title', true );
+
+	return array(
+		'current'   => (object) $current,
+		'staged'    => $error ? null : (object) $staged,
+		'variation' => $title ? (string) $title : $variation,
+		'error'     => $error,
+	);
 }
 
 /**
