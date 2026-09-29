@@ -84,7 +84,7 @@
 
 .cs-changeset-panel-frame .components-modal__content {
 	min-height: 0;
-	padding-inline: var(--wpds-dimension-padding-lg);
+	padding: 0;
 	font-family: var(--wpds-typography-font-family-body);
 	font-size: var(--wpds-typography-font-size-md);
 	line-height: var(--wpds-typography-line-height-md);
@@ -104,13 +104,14 @@
 	display: flex;
 	justify-content: space-between;
 	gap: var(--wpds-dimension-gap-md);
-	padding-block: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-lg);
+	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-lg)
+		var(--wpds-dimension-padding-lg);
 	color: var(--wpds-color-foreground-content-neutral-weak);
 	font-size: var(--wpds-typography-font-size-sm);
 }
 
 .cs-panel-group.components-panel {
-	border-color: var(--wpds-color-stroke-surface-neutral);
+	border: 0;
 	background: var(--wpds-color-background-surface-neutral);
 }
 
@@ -208,11 +209,14 @@
 }
 
 .cs-panel-empty {
+	padding-inline: var(--wpds-dimension-padding-lg);
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
 .cs-panel-footer {
-	padding-block: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg);
+	padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg)
+		var(--wpds-dimension-padding-lg);
+	border-top: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
 }
 
 @media (prefers-reduced-motion: reduce) {
