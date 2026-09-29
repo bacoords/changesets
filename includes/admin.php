@@ -25,6 +25,20 @@ function cs_changeset_badge_html( $title ) {
 }
 
 /**
+ * Exit preview while keeping the visitor on the current page.
+ *
+ * @return string Exit preview URL.
+ */
+function cs_get_current_exit_preview_url() {
+	return add_query_arg(
+		array(
+			'cs_exit_preview' => '1',
+			'changeset'        => false,
+		)
+	);
+}
+
+/**
  * Render the standalone Changeset bar when there is no native admin bar.
  */
 function cs_render_changeset_bar() {
@@ -42,12 +56,7 @@ function cs_render_changeset_bar() {
 		return;
 	}
 
-	$exit_url = add_query_arg(
-		array(
-			'cs_exit_preview' => '1',
-			'changeset'        => false,
-		)
-	);
+	$exit_url = cs_get_current_exit_preview_url();
 
 	$title  = get_the_title( $changeset );
 	$status = cs_get_changeset_status( $changeset->ID );
@@ -250,6 +259,7 @@ function cs_changeset_panel_data( $changeset ) {
 				'nonce' => wp_create_nonce( 'cs_approve_changeset_' . $changeset->ID ),
 			)
 			: null,
+		'exitUrl'     => is_user_logged_in() ? cs_get_current_exit_preview_url() : '',
 		'content'     => $content,
 		'styles'      => $styles,
 		'settings'    => $settings,
@@ -269,6 +279,8 @@ function cs_changeset_panel_data( $changeset ) {
 			'approve'       => __( 'Approve changeset', 'changesets' ),
 			'approving'     => __( 'Approving…', 'changesets' ),
 			'approveError'  => __( 'Could not approve this changeset. Please try again.', 'changesets' ),
+			'reviewChanges' => __( 'Changes in this changeset', 'changesets' ),
+			'exit'          => __( 'Exit Changeset', 'changesets' ),
 			'open'          => __( 'Open', 'changesets' ),
 			'approved'      => __( 'Approved', 'changesets' ),
 			'view'          => __( 'View in preview', 'changesets' ),
