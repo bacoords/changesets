@@ -20,5 +20,12 @@ return array(
 		'page'        => 'changesets',
 		'has_route'   => false,
 		'has_content' => true,
+	),
+	array(
+		'name'        => 'staged-content-edit',
+		'path'        => '/review/$id/edit/$stagedId',
+		'page'        => 'changesets',
+		'has_route'   => false,
+		'has_content' => true,
 	)
 );

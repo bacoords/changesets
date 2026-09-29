@@ -351,6 +351,53 @@ function cs_register_abilities() {
 	);
 
 	wp_register_ability(
+		'changesets/update-staged-content',
+		array(
+			'label'               => __( 'Edit staged content', 'changesets' ),
+			'description'         => __( 'Edit the title, block content, or excerpt of a staged post, page, template, template part, navigation, or public custom post type in an open changeset. Get the staged ID and revision from changesets/get. Saves only the staged draft.', 'changesets' ),
+			'category'            => 'changesets',
+			'input_schema'        => array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'changeset_id' => array( 'type' => 'integer', 'minimum' => 1 ),
+					'staged_id'    => array( 'type' => 'integer', 'minimum' => 1 ),
+					'revision'     => array( 'type' => 'string' ),
+					'title'        => array( 'type' => 'string' ),
+					'content'      => array( 'type' => 'string' ),
+					'excerpt'      => array( 'type' => 'string' ),
+				),
+				'required'             => array( 'changeset_id', 'staged_id', 'revision' ),
+				'additionalProperties' => false,
+			),
+			'output_schema'       => array(
+				'type'       => 'object',
+				'properties' => array(
+					'id'           => array( 'type' => 'integer' ),
+					'changeset_id' => array( 'type' => 'integer' ),
+					'source_id'    => array( 'type' => 'integer' ),
+					'post_type'    => array( 'type' => 'string' ),
+					'title'        => array( 'type' => 'string' ),
+					'content'      => array( 'type' => 'string' ),
+					'excerpt'      => array( 'type' => 'string' ),
+					'revision'     => array( 'type' => 'string' ),
+					'editable'     => array( 'type' => 'boolean' ),
+				),
+			),
+			'execute_callback'    => 'cs_ability_update_staged_content',
+			'permission_callback' => 'cs_ability_can_save',
+			'meta'                => array(
+				'show_in_rest' => true,
+				'public'       => true,
+				'annotations'  => array(
+					'readonly'    => false,
+					'destructive' => false,
+					'idempotent'  => false,
+				),
+			),
+		)
+	);
+
+	wp_register_ability(
 		'changesets/approve',
 		array(
 			'label'               => __( 'Approve changeset', 'changesets' ),
@@ -554,6 +601,7 @@ function cs_ability_get_changeset( $input ) {
 			'title'          => $post ? $post->post_title : '',
 			'post_type'      => $post ? $post->post_type : '',
 			'edit_url'       => get_edit_post_link( $staged_id, 'raw' ),
+			'revision'       => $post ? cs_staged_content_revision( $post ) : '',
 		);
 	}
 
@@ -622,6 +670,17 @@ function cs_ability_save( $input ) {
 		default:
 			return new WP_Error( 'cs_invalid_type', __( 'Invalid type. Must be content, styles, or setting.', 'changesets' ) );
 	}
+}
+
+/**
+ * Edit an existing staged draft through the same service as the dashboard.
+ *
+ * @param array $input Ability input.
+ * @return array|WP_Error
+ */
+function cs_ability_update_staged_content( $input ) {
+	$fields = array_intersect_key( $input, array_flip( array( 'title', 'content', 'excerpt' ) ) );
+	return cs_save_staged_content_for_edit( (int) $input['changeset_id'], (int) $input['staged_id'], $fields, $input['revision'] );
 }
 
 /**

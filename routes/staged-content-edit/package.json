@@ -1,0 +1,20 @@
+{
+  "name": "@changesets/staged-content-edit-route",
+  "version": "1.0.0",
+  "private": true,
+  "route": {
+    "path": "/review/$id/edit/$stagedId",
+    "page": "changesets"
+  },
+  "dependencies": {
+    "@wordpress/api-fetch": "*",
+    "@wordpress/block-editor": "*",
+    "@wordpress/block-library": "*",
+    "@wordpress/blocks": "*",
+    "@wordpress/components": "*",
+    "@wordpress/element": "*",
+    "@wordpress/i18n": "*",
+    "@wordpress/route": "*",
+    "@wordpress/ui": "*"
+  }
+}

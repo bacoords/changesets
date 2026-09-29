@@ -1,6 +1,6 @@
 import apiFetch from '@wordpress/api-fetch';
 import { Button, ColorIndicator, Notice, Spinner } from '@wordpress/components';
-import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews';
+import { DataForm, DataViews, filterSortAndPaginate } from '@wordpress/dataviews';
 import { useEffect, useMemo, useState } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
 import { Link, useParams } from '@wordpress/route';
@@ -82,6 +82,82 @@ const initialThemeJsonView = {
   layout: { density: 'balanced' },
 };
 
+const colorFields = [
+  { id: 'background', type: 'text', label: __( 'Background color', 'changesets' ), description: __( 'Hex color, for example #ffffff.', 'changesets' ) },
+  { id: 'text', type: 'text', label: __( 'Text color', 'changesets' ), description: __( 'Hex color, for example #111111.', 'changesets' ) },
+  { id: 'link', type: 'text', label: __( 'Link color', 'changesets' ), description: __( 'Hex color, for example #ff0055.', 'changesets' ) },
+];
+const colorForm = { layout: { type: 'regular' }, fields: [ 'background', 'text', 'link' ] };
+const readColors = ( themeJson ) => ( {
+  background: themeJson?.styles?.color?.background || '',
+  text: themeJson?.styles?.color?.text || '',
+  link: themeJson?.styles?.elements?.link?.color?.text || '',
+} );
+
+const StagedStylesForm = ( { item, onSaved } ) => {
+  const source = item.theme_json?.staged || item.theme_json?.current;
+  const [ original, setOriginal ] = useState( () => readColors( source ) );
+  const [ colors, setColors ] = useState( () => readColors( source ) );
+  const [ busy, setBusy ] = useState( false );
+  const [ error, setError ] = useState( '' );
+  const [ message, setMessage ] = useState( '' );
+
+  useEffect( () => {
+    const next = readColors( item.theme_json?.staged || item.theme_json?.current );
+    setOriginal( next );
+    setColors( next );
+  }, [ item.theme_json ] );
+
+  const changed = Object.keys( colors ).filter( ( key ) => colors[ key ] !== original[ key ] );
+  const save = async () => {
+    if ( ! changed.length || busy ) {
+      return;
+    }
+    setError( '' );
+    setMessage( '' );
+    if ( changed.some( ( key ) => ! /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test( colors[ key ] ) ) ) {
+      setError( __( 'Enter a hex color for each changed field.', 'changesets' ) );
+      return;
+    }
+    const styles = {};
+    if ( changed.includes( 'background' ) || changed.includes( 'text' ) ) {
+      styles.color = {};
+      if ( changed.includes( 'background' ) ) {
+        styles.color.background = colors.background;
+      }
+      if ( changed.includes( 'text' ) ) {
+        styles.color.text = colors.text;
+      }
+    }
+    if ( changed.includes( 'link' ) ) {
+      styles.elements = { link: { color: { text: colors.link } } };
+    }
+    setBusy( true );
+    try {
+      const updated = await apiFetch( {
+        path: `/changesets/v1/workspace/${ item.id }/styles`,
+        method: 'POST',
+        data: { styles },
+      } );
+      onSaved( updated );
+      setMessage( __( 'Colors saved to this changeset.', 'changesets' ) );
+    } catch ( response ) {
+      setError( response.message || __( 'Could not save staged colors.', 'changesets' ) );
+    } finally {
+      setBusy( false );
+    }
+  };
+
+  return <div className="cs-workspace__style-editor">
+    <h3>{ __( 'Edit staged colors', 'changesets' ) }</h3>
+    <p>{ __( 'These site-wide colors are saved only to this changeset.', 'changesets' ) }</p>
+    { error && <Notice status="error" isDismissible={ false }>{ error }</Notice> }
+    { message && <Notice status="success" isDismissible={ false }>{ message }</Notice> }
+    <DataForm data={ colors } fields={ colorFields } form={ colorForm } onChange={ ( edits ) => setColors( ( previous ) => ( { ...previous, ...edits } ) ) } />
+    <Button variant="secondary" isBusy={ busy } disabled={ ! changed.length || busy } onClick={ save }>{ __( 'Save colors to changeset', 'changesets' ) }</Button>
+  </div>;
+};
+
 export const stage = () => {
   const { id } = useParams( { from: '/review/$id' } );
   const [ item, setItem ] = useState( null );
@@ -158,8 +234,11 @@ export const stage = () => {
                   paginationInfo={ content.paginationInfo }
                   defaultLayouts={ { table: {} } }
                   searchLabel={ __( 'Search staged content', 'changesets' ) }
+                  isItemClickable={ () => item.status === 'open' }
+                  renderItemLink={ ( { item: staged, ...props } ) => <Link to={ `/review/${ item.id }/edit/${ staged.id }` } { ...props } /> }
                   empty={ <p>{ __( 'No matching staged content.', 'changesets' ) }</p> }
                 /> }
+                { item.status === 'open' && item.content.length > 0 && <p>{ __( 'Select a staged item to edit it.', 'changesets' ) }</p> }
                 { item.settings.length > 0 && <><h3>{ __( 'Settings', 'changesets' ) }</h3><p>{ item.settings.join( ', ' ) }</p></> }
                 { item.theme_json && <section className="cs-workspace__theme-json" aria-label={ __( 'Global styles changes', 'changesets' ) }>
                   <h3>{ __( 'Global styles (theme.json)', 'changesets' ) }</h3>
@@ -198,6 +277,9 @@ export const stage = () => {
               </Card.Content>
             </Card.Root>
           </div>
+          { item.status === 'open' && <Card.Root className="cs-workspace__styles-card" render={ <section aria-label={ __( 'Edit staged colors', 'changesets' ) } /> }>
+            <Card.Content><StagedStylesForm item={ item } onSaved={ setItem } /></Card.Content>
+          </Card.Root> }
         </>
       ) }
     </main>

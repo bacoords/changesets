@@ -53,6 +53,10 @@ add_action( 'admin_menu', 'cs_register_workspace_menu' );
 function cs_workspace_enqueue_api_fetch( $hook_suffix ) {
 	if ( 'tools_page_changesets-wp-admin' === $hook_suffix ) {
 		wp_enqueue_script( 'wp-api-fetch' );
+		wp_enqueue_script( 'wp-block-library' );
+		wp_enqueue_style( 'wp-edit-blocks' );
+		wp_enqueue_style( 'wp-block-library' );
+		wp_enqueue_style( 'wp-format-library' );
 		wp_enqueue_style( 'cs-design-tokens', CS_URL . 'build/vendor/design-tokens.css', array(), CS_VERSION );
 		wp_enqueue_style( 'cs-dataviews', CS_URL . 'build/vendor/dataviews.css', array( 'wp-components', 'cs-design-tokens' ), CS_VERSION );
 		wp_style_add_data( 'cs-dataviews', 'rtl', 'replace' );
@@ -116,6 +120,33 @@ function cs_register_workspace_rest_routes() {
 		array(
 			'methods'             => WP_REST_Server::READABLE,
 			'callback'            => 'cs_workspace_get_changeset',
+			'permission_callback' => 'cs_workspace_can_manage',
+		)
+	);
+
+	register_rest_route(
+		'changesets/v1',
+		'/workspace/(?P<id>\d+)/content/(?P<staged_id>\d+)',
+		array(
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => 'cs_workspace_get_staged_content',
+				'permission_callback' => 'cs_workspace_can_manage',
+			),
+			array(
+				'methods'             => WP_REST_Server::EDITABLE,
+				'callback'            => 'cs_workspace_save_staged_content',
+				'permission_callback' => 'cs_workspace_can_manage',
+			),
+		)
+	);
+
+	register_rest_route(
+		'changesets/v1',
+		'/workspace/(?P<id>\d+)/styles',
+		array(
+			'methods'             => WP_REST_Server::EDITABLE,
+			'callback'            => 'cs_workspace_save_staged_styles',
 			'permission_callback' => 'cs_workspace_can_manage',
 		)
 	);
@@ -313,6 +344,66 @@ function cs_workspace_get_changeset( $request ) {
 	}
 
 	return cs_workspace_serialize_changeset( $changeset, true );
+}
+
+/**
+ * Read an editable staged draft.
+ *
+ * @param WP_REST_Request $request REST request.
+ * @return array|WP_Error
+ */
+function cs_workspace_get_staged_content( $request ) {
+	return cs_get_staged_content_for_edit( absint( $request['id'] ), absint( $request['staged_id'] ) );
+}
+
+/**
+ * Save only the linked staged draft; never write to its live source.
+ *
+ * @param WP_REST_Request $request REST request.
+ * @return array|WP_Error
+ */
+function cs_workspace_save_staged_content( $request ) {
+	$fields = array();
+	foreach ( array( 'title', 'content', 'excerpt' ) as $field ) {
+		if ( $request->has_param( $field ) ) {
+			$fields[ $field ] = $request->get_param( $field );
+		}
+	}
+	return cs_save_staged_content_for_edit( absint( $request['id'] ), absint( $request['staged_id'] ), $fields, $request->get_param( 'revision' ) );
+}
+
+/**
+ * Apply a partial global-styles edit to an open changeset.
+ *
+ * @param WP_REST_Request $request REST request.
+ * @return array|WP_Error
+ */
+function cs_workspace_save_staged_styles( $request ) {
+	$id = absint( $request['id'] );
+	if ( ! cs_get_changeset( $id ) ) {
+		return new WP_Error( 'cs_not_found', __( 'Changeset not found.', 'changesets' ), array( 'status' => 404 ) );
+	}
+	if ( 'open' !== cs_get_changeset_status( $id ) ) {
+		return new WP_Error( 'cs_not_open', __( 'Only open changesets can be edited.', 'changesets' ), array( 'status' => 409 ) );
+	}
+	$patch = array();
+	foreach ( array( 'settings', 'styles' ) as $field ) {
+		if ( $request->has_param( $field ) ) {
+			$value = $request->get_param( $field );
+			if ( ! is_array( $value ) ) {
+				return new WP_Error( 'cs_invalid_styles', __( 'Styles and settings must be objects.', 'changesets' ), array( 'status' => 400 ) );
+			}
+			$patch[ $field ] = $value;
+		}
+	}
+	if ( ! $patch ) {
+		return new WP_Error( 'cs_missing_styles', __( 'No styles or settings were provided.', 'changesets' ), array( 'status' => 400 ) );
+	}
+	$result = cs_stage_global_styles( $id, $patch );
+	if ( is_wp_error( $result ) ) {
+		return $result;
+	}
+	return cs_workspace_serialize_changeset( cs_get_changeset( $id ), true );
 }
 
 /**

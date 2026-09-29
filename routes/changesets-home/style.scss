@@ -15,6 +15,8 @@
 .cs-workspace__theme-json { min-width: 0; }
 .cs-workspace__theme-json-source { margin-top: var(--wpds-dimension-gap-xl); }
 .cs-workspace__theme-json-source pre { max-height: 28rem; margin: 0; overflow: auto; font-size: 12px; }
+.cs-workspace__styles-card { margin-top: var(--wpds-dimension-gap-xl); }
+.cs-workspace__style-editor .components-button { margin-top: var(--wpds-dimension-gap-lg); }
 .cs-workspace__palette-value { display: inline-flex; align-items: center; gap: var(--wpds-dimension-gap-sm); }
 .cs-workspace__palette-swatches { display: inline-flex; align-items: center; gap: var(--wpds-dimension-gap-xs); }
 .cs-workspace__actions { display: flex; flex-direction: column; align-items: flex-start; gap: var(--wpds-dimension-gap-md); }

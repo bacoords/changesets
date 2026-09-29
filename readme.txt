@@ -66,7 +66,7 @@ Pair with the WordPress MCP Adapter (separate plugin) for desktop/API agent acce
 
 **Preview notes**: The preview query parameter is `changeset` (cookie name is the same). Exit preview via "Exit Changeset" admin bar link or `?exit_changeset=1`.
 
-**UI note**: Review changesets under Tools → Changesets. Authorized users can approve and publish there. Agents can use the corresponding abilities.
+**UI note**: Review changesets under Tools → Changesets. Open changesets let authorized users edit staged content blocks and selected staged global colors before approval. Agents can use `changesets/update-staged-content` with a revision from `changesets/get` for the same draft edits, or `changesets/save` with `type=styles` for style patches. Authorized users can approve and publish in the dashboard; agents can use the corresponding abilities.
 
 **Agent brief** (paste-ready):
 You have access to a WordPress 7.0+ site. Before staging changes, verify Gutenberg, Changesets, and WordPress MCP Adapter are installed and active. If missing, ask permission to install them. Once active and connected: (1) create a changeset, (2) stage all changes using changesets/save (type: content/styles/setting), (3) give the human the preview URL and wait for approval, (4) after approval call changesets/approve then changesets/publish. Never edit live content directly.

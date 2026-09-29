@@ -826,6 +826,92 @@ function cs_update_staged_content( $staged_id, $fields ) {
 }
 
 /**
+ * Revision token for the editable fields of a staged draft.
+ *
+ * @param WP_Post $staged Staged post.
+ * @return string
+ */
+function cs_staged_content_revision( $staged ) {
+	return hash( 'sha256', wp_json_encode( array( $staged->post_title, $staged->post_content, $staged->post_excerpt ) ) );
+}
+
+/**
+ * Return one staged draft for editing, with its changeset ownership checked.
+ *
+ * @param int $changeset_id Changeset ID.
+ * @param int $staged_id    Staged post ID.
+ * @return array|WP_Error
+ */
+function cs_get_staged_content_for_edit( $changeset_id, $staged_id ) {
+	$changeset = cs_get_changeset( $changeset_id );
+	$staged    = get_post( $staged_id );
+	if ( ! $changeset || ! $staged || ! cs_is_staged( $staged_id ) || cs_get_staged_changeset_id( $staged_id ) !== (int) $changeset_id ) {
+		return new WP_Error( 'cs_staged_not_found', __( 'Staged content not found in this changeset.', 'changesets' ), array( 'status' => 404 ) );
+	}
+	if ( ! current_user_can( 'edit_post', $staged_id ) ) {
+		return new WP_Error( 'cs_forbidden', __( 'You cannot edit this staged content.', 'changesets' ), array( 'status' => 403 ) );
+	}
+	$source_id = cs_get_staged_source_id( $staged_id );
+	if ( $source_id && ! current_user_can( 'edit_post', $source_id ) ) {
+		return new WP_Error( 'cs_forbidden', __( 'You cannot edit the source content.', 'changesets' ), array( 'status' => 403 ) );
+	}
+
+	return array(
+		'id'           => (int) $staged_id,
+		'changeset_id' => (int) $changeset_id,
+		'source_id'    => $source_id,
+		'post_type'    => $staged->post_type,
+		'title'        => $staged->post_title,
+		'content'      => $staged->post_content,
+		'excerpt'      => $staged->post_excerpt,
+		'revision'     => cs_staged_content_revision( $staged ),
+		'editable'     => 'open' === cs_get_changeset_status( $changeset_id ),
+	);
+}
+
+/**
+ * Save editable fields to the staged draft only.
+ *
+ * @param int    $changeset_id Changeset ID.
+ * @param int    $staged_id    Staged post ID.
+ * @param array  $fields       Editable post fields.
+ * @param string $revision     Revision token returned by the read operation.
+ * @return array|WP_Error
+ */
+function cs_save_staged_content_for_edit( $changeset_id, $staged_id, $fields, $revision ) {
+	$item = cs_get_staged_content_for_edit( $changeset_id, $staged_id );
+	if ( is_wp_error( $item ) ) {
+		return $item;
+	}
+	if ( ! $item['editable'] ) {
+		return new WP_Error( 'cs_not_open', __( 'Only open changesets can be edited.', 'changesets' ), array( 'status' => 409 ) );
+	}
+	if ( ! hash_equals( $item['revision'], (string) $revision ) ) {
+		return new WP_Error( 'cs_stale_edit', __( 'This staged content changed since you opened it. Reload before saving.', 'changesets' ), array( 'status' => 409 ) );
+	}
+	$allowed = array_intersect_key( $fields, array_flip( array( 'title', 'content', 'excerpt' ) ) );
+	if ( ! $allowed ) {
+		return new WP_Error( 'cs_no_fields', __( 'No editable fields were provided.', 'changesets' ), array( 'status' => 400 ) );
+	}
+	foreach ( $allowed as $value ) {
+		if ( ! is_string( $value ) ) {
+			return new WP_Error( 'cs_invalid_field', __( 'Editable fields must be strings.', 'changesets' ), array( 'status' => 400 ) );
+		}
+	}
+	$update = array( 'ID' => (int) $staged_id );
+	foreach ( array( 'title' => 'post_title', 'content' => 'post_content', 'excerpt' => 'post_excerpt' ) as $field => $column ) {
+		if ( array_key_exists( $field, $allowed ) ) {
+			$update[ $column ] = wp_slash( $allowed[ $field ] );
+		}
+	}
+	$result = wp_update_post( $update, true );
+	if ( is_wp_error( $result ) ) {
+		return $result;
+	}
+	return cs_get_staged_content_for_edit( $changeset_id, $staged_id );
+}
+
+/**
  * Publish changeset: apply all staged drafts to live, then close.
  *
  * @param int $changeset_id Changeset ID.

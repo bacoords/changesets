@@ -46,7 +46,7 @@ See [readme.txt](readme.txt) for complete documentation.
 3. Create an Application Password (propose-only user without publish permissions recommended)
 4. Connect your MCP client to the site using the Application Password
 
-The Changesets admin workspace is under **Tools → Changesets**. It uses Gutenberg's `@wordpress/build` pages and routes.
+The Changesets admin workspace is under **Tools → Changesets**. It uses Gutenberg's `@wordpress/build` pages and routes. In an open changeset, select a staged post, page, or template to edit its title and blocks in a dedicated route; save writes only to its staged draft. The review screen also edits staged background, text, and link colors. MCP clients can make the same content edits with `changesets/update-staged-content` using the revision from `changesets/get`. See [workspace experiment details](docs/wp-build-workspace.md) for the current editor scope.
 
 **Private preview mode** (optional): Require logged-in users with `manage_changesets` capability to preview changesets. Add to `wp-config.php`:
 
