@@ -6,6 +6,8 @@ The page uses the experimental `@wordpress/build` page and file-based route APIs
 
 The route data comes from the read-only `changesets/v1/workspace` endpoint. Approve and publish actions call the plugin's existing workflow functions, with the same capabilities and approval gate. The admin screen cannot create changesets; use the `changesets/create` ability instead. The review route displays staged posts, settings, and a searchable comparison of staged global styles against current site overrides. It also exposes the complete staged theme.json-shaped data for inspection. These are WordPress user-level global styles; the theme's `theme.json` file is not modified. The review route does not yet edit staged content in place.
 
+The MCP abilities share the dashboard's review data. `changesets/list` returns preview and review links, modified dates, and counts for content, settings, and styles; pass `status: "all"` to include published changesets as the dashboard does. `changesets/get` returns the dashboard's staged content list, setting names, theme.json data and changed paths, preview/review/exit links, and available actions, alongside its existing full staged payloads. `changesets/approve` and `changesets/publish` perform the dashboard's workflow actions with the same approval gate. An MCP client can use `search`, `sort_by`, `sort_order`, `page`, and `per_page` when listing changesets.
+
 Build after changing the route source:
 
 ```sh
