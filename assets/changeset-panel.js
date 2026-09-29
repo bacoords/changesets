@@ -200,6 +200,14 @@
 				},
 				el(
 					'div',
+					{
+						className: 'cs-panel-scroll',
+						role: 'region',
+						'aria-label': data.labels.reviewChanges,
+						tabIndex: 0,
+					},
+					el(
+					'div',
 					{ className: 'cs-panel-summary' },
 					el(
 						'div',
@@ -246,27 +254,45 @@
 								'cs-panel-section--styles'
 							)
 					  )
-					: el( 'p', { className: 'cs-panel-empty' }, data.labels.empty ),
-				data.approval && 'open' === statusValue
+					: el( 'p', { className: 'cs-panel-empty' }, data.labels.empty )
+				),
+				data.exitUrl || ( data.approval && 'open' === statusValue )
 					? el(
 							'div',
-							{ className: 'cs-panel-actions' },
+							{ className: 'cs-panel-footer' },
+							approvalError
+								? el( 'p', { className: 'cs-panel-approval-error', role: 'alert' }, approvalError )
+								: null,
 							el(
-								Button,
-								{
-									variant: 'primary',
-									__next40pxDefaultSize: true,
-									accessibleWhenDisabled: true,
-									disabled: approving,
-									isBusy: approving,
-									onClick: approveChangeset,
-								},
-								approving ? data.labels.approving : data.labels.approve
+								'div',
+								{ className: 'cs-panel-actions' },
+								data.approval && 'open' === statusValue
+									? el(
+											Button,
+											{
+												variant: 'primary',
+												size: 'compact',
+												accessibleWhenDisabled: true,
+												disabled: approving,
+												isBusy: approving,
+												onClick: approveChangeset,
+											},
+											approving ? data.labels.approving : data.labels.approve
+									  )
+									: null,
+								data.exitUrl
+									? el(
+											Button,
+											{
+												variant: 'secondary',
+												size: 'compact',
+												href: data.exitUrl,
+											},
+											data.labels.exit
+									  )
+									: null
 							)
 					  )
-					: null,
-				approvalError
-					? el( 'p', { className: 'cs-panel-approval-error', role: 'alert' }, approvalError )
 					: null
 			);
 		}
