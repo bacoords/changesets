@@ -1796,7 +1796,7 @@ function cs_preview_resolve_new_page( $query_vars ) {
 add_filter( 'request', 'cs_preview_resolve_new_page' );
 
 /**
- * Allow main query to load draft staged pages when preview resolves page_id to one.
+ * Allow main query to load new staged pages and posts by ID in preview.
  *
  * @param WP_Query $query Query.
  */
@@ -1804,12 +1804,14 @@ function cs_preview_allow_staged_status( $query ) {
 	if ( ! $query->is_main_query() || ! cs_get_active_preview_uuid() ) {
 		return;
 	}
-	$page_id = (int) $query->get( 'page_id' );
-	if ( ! $page_id ) {
+	$page_id   = (int) $query->get( 'page_id' );
+	$post_id   = (int) $query->get( 'p' );
+	$target_id = $page_id ? $page_id : $post_id;
+	if ( ! $target_id ) {
 		return;
 	}
 	$index = cs_preview_staged_index();
-	if ( $index && in_array( $page_id, $index['new_ids'], true ) ) {
+	if ( $index && in_array( $target_id, $index['new_ids'], true ) ) {
 		$query->set( 'post_status', array( 'publish', 'draft' ) );
 	}
 }
