@@ -241,7 +241,6 @@ function cs_changeset_panel_data( $changeset ) {
 	return array(
 		'title'       => get_the_title( $changeset ),
 		'status'      => cs_get_changeset_status( $changeset->ID ),
-		'previewUrl'  => cs_get_preview_url( $changeset->ID ),
 		'content'     => $content,
 		'styles'      => $styles,
 		'settings'    => $settings,
@@ -252,7 +251,6 @@ function cs_changeset_panel_data( $changeset ) {
 			'new'           => __( 'New', 'changesets' ),
 			'update'        => __( 'Updated', 'changesets' ),
 			'empty'         => __( 'No changes staged yet.', 'changesets' ),
-			'preview'       => __( 'Preview homepage', 'changesets' ),
 			'status'        => __( 'Status', 'changesets' ),
 			'open'          => __( 'Open', 'changesets' ),
 			'approved'      => __( 'Approved', 'changesets' ),

@@ -176,20 +176,7 @@
 								'cs-panel-section--styles'
 							)
 					  )
-					: el( 'p', { className: 'cs-panel-empty' }, data.labels.empty ),
-				el(
-					'div',
-					{ className: 'cs-panel-footer' },
-					el(
-						Button,
-						{
-							href: data.previewUrl,
-							variant: 'secondary',
-							__next40pxDefaultSize: true,
-						},
-						data.labels.preview
-					)
-				)
+					: el( 'p', { className: 'cs-panel-empty' }, data.labels.empty )
 			);
 		}
 

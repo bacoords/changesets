@@ -63,7 +63,7 @@
 	align-self: stretch;
 	display: flex;
 	flex-direction: column;
-	width: min(480px, 100vw);
+	width: min(360px, 100vw);
 	min-width: 0;
 	max-width: 100vw;
 	height: 100dvh;
@@ -213,15 +213,15 @@
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
-.cs-panel-footer {
-	padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg)
-		var(--wpds-dimension-padding-lg);
-	border-top: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
-}
-
 @media (prefers-reduced-motion: reduce) {
 	.cs-changeset-panel-overlay .cs-changeset-panel-frame.components-modal__frame {
 		animation: none;
+	}
+}
+
+@media (max-width: 480px) {
+	.cs-changeset-panel-overlay .cs-changeset-panel-frame.components-modal__frame {
+		width: 100vw;
 	}
 }
 
