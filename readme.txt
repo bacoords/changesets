@@ -66,7 +66,7 @@ Pair with the WordPress MCP Adapter (separate plugin) for desktop/API agent acce
 
 **Preview notes**: The preview query parameter is `changeset` (cookie name is the same). Logged-out visitors can use the standalone "Exit Changeset" bar; anyone can exit via `?cs_exit_preview=1`.
 
-**UI note**: No Changesets screen is registered in wp-admin. During an active preview, the native site-name admin bar item contains a changeset badge for logged-in users. Logged-out visitors see a matching badge and Exit Changeset control. Use the abilities to inspect, approve, and publish.
+**UI note**: No Changesets screen is registered in wp-admin. During an active preview, the changeset badge opens a left-side panel listing staged content, theme styles, and site settings; content with a permalink links to its preview. Logged-in users see the badge in the native admin bar. Logged-out visitors can open the same panel from the standalone preview bar, which also has an Exit Changeset control. Use the abilities to inspect, approve, and publish.
 
 **Agent brief** (paste-ready):
 You have access to a WordPress 7.0+ site. Before staging changes, verify Gutenberg, Changesets, and WordPress MCP Adapter are installed and active. If missing, ask permission to install them. Once active and connected: (1) create a changeset, (2) stage all changes using changesets/save (type: content/styles/setting), (3) give the human the preview URL and wait for approval, (4) after approval call changesets/approve then changesets/publish. Never edit live content directly.

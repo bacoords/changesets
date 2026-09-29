@@ -46,7 +46,7 @@ See [readme.txt](readme.txt) for complete documentation.
 3. Create an Application Password (propose-only user without publish permissions recommended)
 4. Connect your MCP client to the site using the Application Password
 
-Changesets has no wp-admin screen. Create, inspect, approve, and publish changesets through its abilities. During an active preview, logged-in users see a changeset badge inside the native site-name admin bar item. Logged-out visitors see the same badge and an Exit Changeset control in a standalone preview bar.
+Changesets has no wp-admin screen. Create, inspect, approve, and publish changesets through its abilities. During an active preview, the changeset badge opens a WordPress Design System panel from the left with every staged content item, theme style change, and site setting. Content with a permalink links to its changeset preview. Logged-in users see the badge in the native admin bar; logged-out visitors see it with an Exit Changeset control in a standalone preview bar.
 
 **Private preview mode** (optional): Require logged-in users with `manage_changesets` capability to preview changesets. Add to `wp-config.php`:
 
