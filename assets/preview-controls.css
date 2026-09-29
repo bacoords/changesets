@@ -80,71 +80,77 @@
 }
 
 .cs-share-content {
-	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	gap: var(--wpds-dimension-gap-sm);
-	padding: var(--wpds-dimension-padding-lg);
+	color: var(--wpds-color-foreground-content-neutral);
 }
 
 .cs-share-heading {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	gap: var(--wpds-dimension-gap-md);
-	width: 100%;
+	gap: var(--wpds-dimension-gap-sm);
+	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-lg)
+		var(--wpds-dimension-padding-xs);
 }
 
 .cs-share-heading h3 {
 	margin: 0;
-	color: var(--wpds-color-foreground-content-neutral);
 	font-family: var(--wpds-typography-font-family-heading);
-	font-size: var(--wpds-typography-font-size-lg);
+	font-size: var(--wpds-typography-font-size-md);
 	font-weight: var(--wpds-typography-font-weight-emphasis);
-	line-height: var(--wpds-typography-line-height-lg);
-}
-
-.cs-share-status {
-	color: var(--wpds-color-foreground-content-neutral-weak);
-	font-size: var(--wpds-typography-font-size-sm);
+	line-height: var(--wpds-typography-line-height-md);
 }
 
 .cs-share-title {
 	margin: 0;
-	font-weight: var(--wpds-typography-font-weight-emphasis);
+	padding: 0 var(--wpds-dimension-padding-lg) var(--wpds-dimension-padding-md);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: var(--wpds-typography-font-size-sm);
 	overflow-wrap: anywhere;
 }
 
-.cs-share-settings {
-	width: 100%;
-	padding-block: var(--wpds-dimension-padding-sm);
-	border-block: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
+.cs-share-settings,
+.cs-share-audience {
+	margin: 0;
+	padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg);
+	border-top: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
 }
 
 .cs-share-settings .components-base-control {
-	margin-bottom: var(--wpds-dimension-gap-sm);
+	margin-bottom: 0;
 }
 
 .cs-share-audience,
 .cs-share-hint {
-	margin: 0;
 	color: var(--wpds-color-foreground-content-neutral-weak);
 	font-size: var(--wpds-typography-font-size-sm);
 }
 
-.cs-share-actions {
-	display: flex;
-	flex-wrap: wrap;
-	gap: var(--wpds-dimension-gap-sm);
-	width: 100%;
-	padding-top: var(--wpds-dimension-padding-sm);
-	border-top: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
+.cs-share-hint {
+	margin: 0;
+	padding: 0 var(--wpds-dimension-padding-lg) var(--wpds-dimension-padding-sm);
+}
+
+.cs-share-feedback {
+	padding: 0 var(--wpds-dimension-padding-lg) var(--wpds-dimension-padding-sm);
 }
 
 .cs-share-content .components-notice {
 	box-sizing: border-box;
 	width: 100%;
 	margin: 0;
+}
+
+.cs-share-actions {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: var(--wpds-dimension-gap-sm);
+	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-lg);
+	border-top: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
+}
+
+.cs-share-actions .components-button:last-child {
+	margin-inline-start: auto;
 }
 
 .cs-share-fallback-url {
@@ -161,7 +167,7 @@
 	z-index: 99998;
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
+	justify-content: flex-start;
 	gap: var(--wpds-dimension-gap-md);
 	box-sizing: border-box;
 	width: 100%;
@@ -215,36 +221,6 @@
 	text-transform: capitalize;
 }
 
-.dcp-changeset-bar .dcp-changeset-bar__exit {
-	flex: 0 0 auto;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	box-sizing: border-box;
-	min-height: var(--wpds-dimension-size-sm);
-	padding-inline: var(--wpds-dimension-padding-sm);
-	border: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-interactive-neutral);
-	border-radius: var(--wpds-border-radius-sm);
-	background: var(--wpds-color-background-interactive-neutral);
-	color: var(--wpds-color-foreground-interactive-neutral);
-	font-weight: var(--wpds-typography-font-weight-emphasis);
-	line-height: 1;
-	text-decoration: none;
-	white-space: nowrap;
-}
-
-.dcp-changeset-bar .dcp-changeset-bar__exit:hover,
-.dcp-changeset-bar .dcp-changeset-bar__exit:focus {
-	border-color: var(--wpds-color-stroke-interactive-neutral-active);
-	background: var(--wpds-color-background-interactive-neutral-active);
-	color: var(--wpds-color-foreground-interactive-neutral-active);
-}
-
-.dcp-changeset-bar .dcp-changeset-bar__exit:focus-visible {
-	outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
-	outline-offset: var(--wpds-border-width-xs);
-}
-
 body.dcp-previewing .is-position-sticky {
 	top: var(--cs-preview-bar-height, 40px) !important;
 }
@@ -258,6 +234,10 @@ body.dcp-previewing .wp-block-navigation__responsive-container.is-menu-open {
 }
 
 @media screen and (max-width: 782px) {
+	.cs-changeset-share-popover.components-popover {
+		margin-left: -12px;
+	}
+
 	#wpadminbar #wp-admin-bar-changesets-share {
 		display: block !important;
 		width: auto;

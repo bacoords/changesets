@@ -56,8 +56,6 @@ function cs_render_changeset_bar() {
 		return;
 	}
 
-	$exit_url = cs_get_current_exit_preview_url();
-
 	$title  = get_the_title( $changeset );
 	$status = cs_get_changeset_status( $changeset->ID );
 	?>
@@ -76,9 +74,6 @@ function cs_render_changeset_bar() {
 				<span class="dcp-changeset-bar__status"><?php echo esc_html( $status ); ?></span>
 			<?php endif; ?>
 		</div>
-		<a class="dcp-changeset-bar__exit" href="<?php echo esc_url( $exit_url ); ?>">
-			<?php echo esc_html__( 'Exit Changeset', 'changesets' ); ?>
-		</a>
 	</div>
 	<script>
 		(function() {
@@ -178,32 +173,30 @@ function cs_changeset_share_data( $changeset ) {
 				'nonce' => wp_create_nonce( 'cs_approve_changeset_' . $id ),
 			)
 			: null,
-		'exitUrl'            => is_user_logged_in() ? cs_get_current_exit_preview_url() : '',
+		'exitUrl'            => cs_get_current_exit_preview_url(),
 		'labels'             => array(
 			'shareTrigger'         => __( 'Share changeset', 'changesets' ),
-			'shareHeading'         => __( 'Share this changeset', 'changesets' ),
-			'copyLink'             => __( 'Copy preview link', 'changesets' ),
+			'shareHeading'         => __( 'Share changeset', 'changesets' ),
+			'close'                => __( 'Close sharing menu', 'changesets' ),
+			'copyLink'             => __( 'Copy link', 'changesets' ),
 			'copied'               => __( 'Link copied', 'changesets' ),
 			'copyError'            => __( 'Could not copy the link. Copy it from the address bar instead.', 'changesets' ),
-			'visibility'           => __( 'Who can view this preview', 'changesets' ),
+			'visibility'           => __( 'Visibility', 'changesets' ),
+			'visibilityPublicShort' => __( 'Public', 'changesets' ),
+			'visibilityLoggedInShort' => __( 'Logged in', 'changesets' ),
 			'visibilityPublic'     => __( 'Anyone with the link', 'changesets' ),
 			'visibilityLoggedIn'   => __( 'Signed-in users', 'changesets' ),
 			'visibilityCapability' => __( 'Changeset managers', 'changesets' ),
 			'visibilityOverride'   => __( 'Site-wide private previews restrict access to changeset managers.', 'changesets' ),
 			'visibilityLoginHint'  => __( 'People opening this link will need to sign in.', 'changesets' ),
 			'visibilityManagerHint' => __( 'Only changeset managers can open this link.', 'changesets' ),
-			'saveVisibility'       => __( 'Save sharing settings', 'changesets' ),
 			'saving'               => __( 'Saving…', 'changesets' ),
 			'saved'                => __( 'Sharing settings saved.', 'changesets' ),
 			'saveError'            => __( 'Could not save sharing settings. Please try again.', 'changesets' ),
-			'approve'              => __( 'Approve changeset', 'changesets' ),
+			'approve'              => __( 'Approve', 'changesets' ),
 			'approving'            => __( 'Approving…', 'changesets' ),
 			'approveError'         => __( 'Could not approve this changeset. Please try again.', 'changesets' ),
-			'exit'                 => __( 'Exit Changeset', 'changesets' ),
-			'open'                 => __( 'Open', 'changesets' ),
-			'approved'             => __( 'Approved', 'changesets' ),
-			'published'            => __( 'Published', 'changesets' ),
-			'discarded'            => __( 'Discarded', 'changesets' ),
+			'exit'                 => __( 'Exit', 'changesets' ),
 		),
 	);
 }
